@@ -602,19 +602,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
         </div>
 
-        {/* Hostinger Build Export Shortcut */}
-        <div className="flex justify-center mb-3">
-          <a
-            href="/dist_hostinger.zip"
-            download="dist_hostinger.zip"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-950/80 text-sky-300 border border-sky-500/30 hover:bg-sky-900/80 hover:text-white transition shadow-sm"
-            title="Unduh paket file build dist.zip siap upload ke File Manager Hostinger"
-          >
-            <Download className="w-3.5 h-3.5 text-sky-400" />
-            <span>Ekspor Build untuk Hostinger (dist.zip)</span>
-          </a>
-        </div>
-
         {/* Security Footnote */}
         <p className="text-center text-[11px] text-slate-500">
           Jaksel Building Assistance • Unit Pengelola PTSP Kota Administrasi Jakarta Selatan
