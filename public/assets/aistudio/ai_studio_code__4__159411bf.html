@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jaksel Building Assistance</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="flex justify-center items-center min-h-screen sm:py-6">
+
+  <!-- Mobile Container Mockup -->
+  <div class="w-full sm:max-w-md bg-white min-h-screen sm:min-h-[844px] sm:rounded-[36px] shadow-2xl flex flex-col justify-between overflow-hidden relative border border-slate-200">
+
+    <!-- ==================== HEADER (Umum) ==================== -->
+    <header class="px-5 py-3.5 bg-white flex items-center justify-between border-b border-slate-100 z-10 sticky top-0">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center p-0.5">
+          <svg viewBox="0 0 24 24" class="w-6 h-6 text-blue-900 fill-current">
+            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 2.18l6 2.25v4.66c0 4.1-2.6 7.9-6 8.91-3.4-1.01-6-4.81-6-8.91V6.43l6-2.25z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-bold text-sm leading-tight text-slate-900">Jaksel Building Assistance</h1>
+          <p class="text-[11px] text-slate-500 leading-tight">Pendampingan Gedung Jakarta Selatan</p>
+        </div>
+      </div>
+      <button class="p-1.5 text-slate-700 hover:bg-slate-100 rounded-lg">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+    </header>
+
+    <!-- CONTAINER KONTEN -->
+    <div class="flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
+
+      <!-- ========================================== -->
+      <!-- SCREEN 1: BERANDA / HOME                   -->
+      <!-- ========================================== -->
+      <section id="screen-home" class="flex-1 flex flex-col justify-between">
+        <div class="p-5 pb-0">
+          <div class="w-full h-36 rounded-2xl bg-gradient-to-t from-sky-100 to-blue-50 overflow-hidden relative mb-5 flex items-end justify-center">
+            <svg class="w-full h-28 text-blue-900/40" viewBox="0 0 400 120" fill="currentColor">
+              <rect x="50" y="30" width="35" height="90" rx="3" />
+              <rect x="95" y="10" width="45" height="110" rx="3" fill="#0369a1" />
+              <rect x="150" y="45" width="40" height="75" rx="3" />
+              <rect x="200" y="20" width="50" height="100" rx="3" fill="#0284c7" />
+              <rect x="260" y="40" width="35" height="80" rx="3" />
+              <rect x="305" y="15" width="45" height="105" rx="3" fill="#075985" />
+            </svg>
+            <div class="absolute bottom-0 w-full h-8 bg-gradient-to-t from-emerald-600/40 to-transparent"></div>
+          </div>
+
+          <h2 class="text-lg font-extrabold text-slate-900 leading-snug mb-5">
+            Kenali kondisi gedung Anda.<br>
+            Temukan langkah yang perlu dilakukan. Dapatkan pendampingan dari PTSP Jakarta Selatan.
+          </h2>
+
+          <div class="space-y-3">
+            <div onclick="goToScreen('screen-step1')" class="cursor-pointer bg-[#0c406d] text-white p-4 rounded-xl flex items-center gap-3.5 hover:bg-[#083053] transition shadow-md">
+              <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="clipboard-check" class="w-6 h-6 text-white"></i>
+              </div>
+              <div class="flex-1">
+                <h3 class="font-bold text-sm">Mulai Self-Check</h3>
+                <p class="text-xs text-blue-100/80">Periksa kondisi dan kebutuhan gedung</p>
+              </div>
+            </div>
+
+            <div onclick="goToScreen('screen-step1')" class="cursor-pointer bg-white border border-slate-200 text-slate-800 p-4 rounded-xl flex items-center gap-3.5 hover:bg-slate-50 transition shadow-sm">
+              <div class="w-10 h-10 rounded-full border border-slate-300 flex items-center justify-center flex-shrink-0 text-[#0c406d]">
+                <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
+              </div>
+              <div class="flex-1">
+                <h3 class="font-bold text-sm text-slate-900">Lanjutkan Self-Check</h3>
+                <p class="text-xs text-slate-500">Lanjutkan pengisian yang belum selesai</p>
+              </div>
+            </div>
+
+            <div onclick="alert('Layanan konsultasi online PTSP Jakarta Selatan')" class="cursor-pointer bg-white border border-slate-200 text-slate-800 p-4 rounded-xl flex items-center gap-3.5 hover:bg-slate-50 transition shadow-sm">
+              <div class="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center flex-shrink-0 text-slate-700">
+                <i data-lucide="headphones" class="w-5 h-5"></i>
+              </div>
+              <div class="flex-1">
+                <h3 class="font-bold text-sm text-slate-900">Minta Pendampingan</h3>
+                <p class="text-xs text-slate-500">Konsultasi dengan petugas PTSP</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <div class="w-full h-24 bg-gradient-to-t from-sky-200/50 to-transparent flex items-end">
+            <svg class="w-full h-16 text-blue-900/30" viewBox="0 0 400 80" fill="currentColor">
+              <rect x="20" y="20" width="35" height="60" />
+              <rect x="70" y="10" width="50" height="70" />
+              <rect x="135" y="30" width="30" height="50" />
+              <rect x="180" y="5" width="40" height="75" />
+              <rect x="240" y="25" width="45" height="55" />
+              <rect x="300" y="15" width="40" height="65" />
+              <rect x="355" y="35" width="30" height="45" />
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- SCREEN 2: TAHAP 1 (Fungsi Gedung)          -->
+      <!-- ========================================== -->
+      <section id="screen-step1" class="hidden flex-1 flex flex-col justify-between p-5">
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <button onclick="goToScreen('screen-home')" class="p-1 hover:bg-slate-100 rounded-lg text-slate-700">
+              <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <h2 class="font-bold text-slate-900 text-base">Self-Check Gedung</h2>
+          </div>
+
+          <!-- Stepper: 1 Active -->
+          <div class="flex items-center justify-center gap-4 py-2 mb-4">
+            <div class="w-8 h-8 rounded-full bg-[#0c406d] text-white flex items-center justify-center font-semibold text-xs shadow-sm">1</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">2</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">3</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">4</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">5</div>
+          </div>
+
+          <div class="mb-4">
+            <span class="text-xs text-slate-500 font-medium">Langkah 1 dari 5</span>
+            <h3 class="font-bold text-slate-900 text-base">Kenali Gedung Anda</h3>
+            <p class="font-semibold text-slate-800 text-sm mt-2">Apa fungsi utama gedung Anda?</p>
+          </div>
+
+          <!-- Pilihan Opsi Gedung -->
+          <div class="space-y-2.5" id="step1-options">
+            <label onclick="setBuildingType('Perkantoran')" class="step1-item flex items-center gap-3.5 p-3.5 border-2 border-[#0c406d] bg-blue-50/20 rounded-xl cursor-pointer transition">
+              <input type="radio" name="building_type" value="Perkantoran" checked class="hidden">
+              <div class="radio-indicator w-5 h-5 rounded-full border-2 border-[#0c406d] flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#0c406d]"></div>
+              </div>
+              <i data-lucide="building-2" class="w-5 h-5 text-[#0c406d]"></i>
+              <span class="text-sm font-semibold text-slate-800">Perkantoran</span>
+            </label>
+
+            <label onclick="setBuildingType('Pusat perbelanjaan')" class="step1-item flex items-center gap-3.5 p-3.5 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition">
+              <input type="radio" name="building_type" value="Pusat perbelanjaan" class="hidden">
+              <div class="radio-indicator w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-transparent"></div>
+              </div>
+              <i data-lucide="store" class="w-5 h-5 text-slate-600"></i>
+              <span class="text-sm font-medium text-slate-700">Pusat perbelanjaan</span>
+            </label>
+
+            <label onclick="setBuildingType('Hotel')" class="step1-item flex items-center gap-3.5 p-3.5 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition">
+              <input type="radio" name="building_type" value="Hotel" class="hidden">
+              <div class="radio-indicator w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-transparent"></div>
+              </div>
+              <i data-lucide="bed" class="w-5 h-5 text-slate-600"></i>
+              <span class="text-sm font-medium text-slate-700">Hotel</span>
+            </label>
+
+            <label onclick="setBuildingType('Apartemen')" class="step1-item flex items-center gap-3.5 p-3.5 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition">
+              <input type="radio" name="building_type" value="Apartemen" class="hidden">
+              <div class="radio-indicator w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-transparent"></div>
+              </div>
+              <i data-lucide="building" class="w-5 h-5 text-slate-600"></i>
+              <span class="text-sm font-medium text-slate-700">Apartemen</span>
+            </label>
+
+            <label onclick="setBuildingType('Bangunan industri / pergudangan')" class="step1-item flex items-center gap-3.5 p-3.5 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition">
+              <input type="radio" name="building_type" value="Bangunan industri / pergudangan" class="hidden">
+              <div class="radio-indicator w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-transparent"></div>
+              </div>
+              <i data-lucide="factory" class="w-5 h-5 text-slate-600"></i>
+              <span class="text-sm font-medium text-slate-700 leading-snug">Bangunan industri / pergudangan</span>
+            </label>
+
+            <label onclick="setBuildingType('Fungsi lainnya')" class="step1-item flex items-center gap-3.5 p-3.5 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition">
+              <input type="radio" name="building_type" value="Fungsi lainnya" class="hidden">
+              <div class="radio-indicator w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-transparent"></div>
+              </div>
+              <i data-lucide="more-horizontal" class="w-5 h-5 text-slate-600"></i>
+              <span class="text-sm font-medium text-slate-700">Fungsi lainnya</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-5">
+          <button onclick="goToStep2()" class="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md">
+            <span>Lanjutkan</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SCREEN 3: TAHAP 2 (Kebutuhan Izin + Upload Masing-Masing)     -->
+      <!-- ============================================================== -->
+      <section id="screen-step2" class="hidden flex-1 flex flex-col justify-between p-5">
+        <div>
+          <!-- Header Back -->
+          <div class="flex items-center gap-3 mb-4">
+            <button onclick="goToScreen('screen-step1')" class="p-1 hover:bg-slate-100 rounded-lg text-slate-700">
+              <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <h2 class="font-bold text-slate-900 text-base">Self-Check Gedung</h2>
+          </div>
+
+          <!-- Stepper: 1 Done, 2 Active -->
+          <div class="flex items-center justify-center gap-4 py-2 mb-4">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-semibold text-xs shadow-sm">
+              <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-[#0c406d] text-white flex items-center justify-center font-semibold text-xs shadow-sm">2</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">3</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">4</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">5</div>
+          </div>
+
+          <div class="mb-4">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-500 font-medium">Langkah 2 dari 5</span>
+              <span id="selected-building-badge" class="text-[11px] font-bold bg-sky-100 text-blue-900 px-2.5 py-0.5 rounded-full">Perkantoran</span>
+            </div>
+            <h3 class="font-bold text-slate-900 text-base mt-1">Identifikasi Izin Eksisting</h3>
+            <p class="font-semibold text-slate-800 text-xs mt-1.5 leading-snug">
+              Centang izin yang <span class="text-[#0c406d] font-bold">SUDAH DIMILIKI</span> gedung Anda saat ini. Izin yang tidak dicentang akan dievaluasi persyaratannya di Tahap 3:
+            </p>
+          </div>
+
+          <!-- LIST PERTANYAAN IZIN DENGAN UPLOAD MASING-MASING -->
+          <div class="space-y-3" id="permit-items-container">
+
+            <!-- ITEM 1: SLF -->
+            <div class="permit-card border border-slate-200 rounded-2xl p-3 bg-white transition" id="card-slf">
+              <div class="flex items-start gap-3 cursor-pointer" onclick="togglePermitCard('slf')">
+                <div class="custom-checkbox w-5 h-5 rounded-md border border-slate-300 flex items-center justify-center mt-0.5 flex-shrink-0 transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-white hidden"></i>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-xs font-bold text-slate-800">Sertifikat Laik Fungsi (SLF)</h4>
+                  <p class="text-[11px] text-slate-500">Gedung sudah memiliki sertifikat kelaikan operasi berkala.</p>
+                </div>
+              </div>
+
+              <div class="mt-2.5 pt-2 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] text-slate-600 font-medium">Upload Berkas SLF</span>
+                  <label for="upload-slf" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#0c406d] bg-sky-50 hover:bg-sky-100 rounded-lg cursor-pointer transition border border-sky-200">
+                    <i data-lucide="upload" class="w-3 h-3"></i>
+                    <span>Unggah File</span>
+                  </label>
+                  <input type="file" id="upload-slf" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleItemUpload('slf', event)">
+                </div>
+                <div id="preview-slf" class="mt-2 hidden">
+                  <div class="flex items-center justify-between p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <span class="file-name text-[11px] text-slate-700 font-medium truncate">dokumen.pdf</span>
+                    <button type="button" onclick="removeItemUpload('slf')" class="text-slate-400 hover:text-red-500 p-0.5">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ITEM 2: PBG / IMB -->
+            <div class="permit-card border border-slate-200 rounded-2xl p-3 bg-white transition" id="card-pbg">
+              <div class="flex items-start gap-3 cursor-pointer" onclick="togglePermitCard('pbg')">
+                <div class="custom-checkbox w-5 h-5 rounded-md border border-slate-300 flex items-center justify-center mt-0.5 flex-shrink-0 transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-white hidden"></i>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-xs font-bold text-slate-800">Persetujuan Bangunan Gedung (PBG / IMB)</h4>
+                  <p class="text-[11px] text-slate-500">Memiliki surat izin konstruksi & arsitektur resmi terdahulu.</p>
+                </div>
+              </div>
+
+              <div class="mt-2.5 pt-2 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] text-slate-600 font-medium">Upload IMB/PBG & Gambar</span>
+                  <label for="upload-pbg" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#0c406d] bg-sky-50 hover:bg-sky-100 rounded-lg cursor-pointer transition border border-sky-200">
+                    <i data-lucide="upload" class="w-3 h-3"></i>
+                    <span>Unggah File</span>
+                  </label>
+                  <input type="file" id="upload-pbg" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleItemUpload('pbg', event)">
+                </div>
+                <div id="preview-pbg" class="mt-2 hidden">
+                  <div class="flex items-center justify-between p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <span class="file-name text-[11px] text-slate-700 font-medium truncate">dokumen.pdf</span>
+                    <button type="button" onclick="removeItemUpload('pbg')" class="text-slate-400 hover:text-red-500 p-0.5">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ITEM 3: DAMKAR -->
+            <div class="permit-card border border-slate-200 rounded-2xl p-3 bg-white transition" id="card-damkar">
+              <div class="flex items-start gap-3 cursor-pointer" onclick="togglePermitCard('damkar')">
+                <div class="custom-checkbox w-5 h-5 rounded-md border border-slate-300 flex items-center justify-center mt-0.5 flex-shrink-0 transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-white hidden"></i>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-xs font-bold text-slate-800">Proteksi Kebakaran (Damkar)</h4>
+                  <p class="text-[11px] text-slate-500">Memiliki sertifikasi berkala instalasi proteksi kebakaran aktif/pasif.</p>
+                </div>
+              </div>
+
+              <div class="mt-2.5 pt-2 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] text-slate-600 font-medium">Upload Laporan Damkar</span>
+                  <label for="upload-damkar" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#0c406d] bg-sky-50 hover:bg-sky-100 rounded-lg cursor-pointer transition border border-sky-200">
+                    <i data-lucide="upload" class="w-3 h-3"></i>
+                    <span>Unggah File</span>
+                  </label>
+                  <input type="file" id="upload-damkar" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleItemUpload('damkar', event)">
+                </div>
+                <div id="preview-damkar" class="mt-2 hidden">
+                  <div class="flex items-center justify-between p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <span class="file-name text-[11px] text-slate-700 font-medium truncate">dokumen.pdf</span>
+                    <button type="button" onclick="removeItemUpload('damkar')" class="text-slate-400 hover:text-red-500 p-0.5">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ITEM 4: K3 INSTALASI -->
+            <div class="permit-card border border-slate-200 rounded-2xl p-3 bg-white transition" id="card-k3">
+              <div class="flex items-start gap-3 cursor-pointer" onclick="togglePermitCard('k3')">
+                <div class="custom-checkbox w-5 h-5 rounded-md border border-slate-300 flex items-center justify-center mt-0.5 flex-shrink-0 transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-white hidden"></i>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-xs font-bold text-slate-800">Izin K3 Instalasi (Lift, Genset, Petir)</h4>
+                  <p class="text-[11px] text-slate-500">Telah memiliki pengesahan riksa uji Disnakertrans DKI.</p>
+                </div>
+              </div>
+
+              <div class="mt-2.5 pt-2 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] text-slate-600 font-medium">Upload Buku Uji K3</span>
+                  <label for="upload-k3" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#0c406d] bg-sky-50 hover:bg-sky-100 rounded-lg cursor-pointer transition border border-sky-200">
+                    <i data-lucide="upload" class="w-3 h-3"></i>
+                    <span>Unggah File</span>
+                  </label>
+                  <input type="file" id="upload-k3" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleItemUpload('k3', event)">
+                </div>
+                <div id="preview-k3" class="mt-2 hidden">
+                  <div class="flex items-center justify-between p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <span class="file-name text-[11px] text-slate-700 font-medium truncate">dokumen.pdf</span>
+                    <button type="button" onclick="removeItemUpload('k3')" class="text-slate-400 hover:text-red-500 p-0.5">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ITEM 5: LINGKUNGAN / ANDALALIN -->
+            <div class="permit-card border border-slate-200 rounded-2xl p-3 bg-white transition" id="card-env">
+              <div class="flex items-start gap-3 cursor-pointer" onclick="togglePermitCard('env')">
+                <div class="custom-checkbox w-5 h-5 rounded-md border border-slate-300 flex items-center justify-center mt-0.5 flex-shrink-0 transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-white hidden"></i>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-xs font-bold text-slate-800" id="card-env-title">Persetujuan Lingkungan & Andalalin</h4>
+                  <p class="text-[11px] text-slate-500" id="card-env-desc">Memiliki persetujuan teknis AMDAL/UKL-UPL dan izin lalu lintas.</p>
+                </div>
+              </div>
+
+              <div class="mt-2.5 pt-2 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] text-slate-600 font-medium">Upload Izin Lingkungan</span>
+                  <label for="upload-env" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#0c406d] bg-sky-50 hover:bg-sky-100 rounded-lg cursor-pointer transition border border-sky-200">
+                    <i data-lucide="upload" class="w-3 h-3"></i>
+                    <span>Unggah File</span>
+                  </label>
+                  <input type="file" id="upload-env" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleItemUpload('env', event)">
+                </div>
+                <div id="preview-env" class="mt-2 hidden">
+                  <div class="flex items-center justify-between p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <span class="file-name text-[11px] text-slate-700 font-medium truncate">dokumen.pdf</span>
+                    <button type="button" onclick="removeItemUpload('env')" class="text-slate-400 hover:text-red-500 p-0.5">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tombol Lanjut ke Tahap 3 (Evaluasi Syarat Izin yang Belum Dicenthang) -->
+        <div class="pt-4">
+          <button onclick="goToStep3Requirements()" class="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md">
+            <span>Lanjutkan ke Tahap 3 (Persyaratan)</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================================================= -->
+      <!-- SCREEN 4: TAHAP 3 (DINAMIS: PERSYARATAN IZIN YANG BELUM DICENTANG)       -->
+      <!-- ========================================================================= -->
+      <section id="screen-step3" class="hidden flex-1 flex flex-col justify-between p-5">
+        <div>
+          <!-- Header Back -->
+          <div class="flex items-center gap-3 mb-4">
+            <button onclick="goToScreen('screen-step2')" class="p-1 hover:bg-slate-100 rounded-lg text-slate-700">
+              <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <h2 class="font-bold text-slate-900 text-base">Self-Check Gedung</h2>
+          </div>
+
+          <!-- Stepper: 1 & 2 Done, 3 Active -->
+          <div class="flex items-center justify-center gap-4 py-2 mb-4">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-semibold text-xs shadow-sm">
+              <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-semibold text-xs shadow-sm">
+              <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-[#0c406d] text-white flex items-center justify-center font-semibold text-xs shadow-sm">3</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">4</div>
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">5</div>
+          </div>
+
+          <div class="mb-4">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-500 font-medium">Langkah 3 dari 5</span>
+              <span id="missing-permits-badge" class="text-[11px] font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full">3 Izin Perlu Diurus</span>
+            </div>
+            <h3 class="font-bold text-slate-900 text-base mt-1">Cek Kesiapan Syarat Izin</h3>
+            <p class="text-xs text-slate-600 mt-1 leading-snug">
+              Berdasarkan isian Tahap 2, izin berikut belum Anda miliki. Berikan tanda centang pada persyaratan yang <span class="font-semibold text-slate-900">sudah siap/tersedia</span>:
+            </p>
+          </div>
+
+          <!-- CONTAINER DAFTAR PERSYARATAN DINAMIS -->
+          <div id="missing-requirements-list" class="space-y-4">
+            <!-- Konten kartu persyaratan akan dirender secara dinamis lewat JavaScript -->
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button onclick="finishSelfCheck()" class="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md">
+            <span>Lihat Ringkasan Hasil</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- SCREEN 5: HASIL SELF-CHECK                 -->
+      <!-- ========================================== -->
+      <section id="screen-result" class="hidden flex-1 flex flex-col justify-between p-5">
+        <div>
+          <!-- Header Status Sukses -->
+          <div class="flex items-start gap-3.5 mb-4">
+            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
+            </div>
+            <div>
+              <h2 class="font-extrabold text-slate-900 text-base leading-tight">Hasil Self-Check Anda</h2>
+              <p class="text-xs text-slate-500 mt-0.5 leading-snug">Pemetaan kelaikan bangunan & kesiapan pemenuhan syarat.</p>
+            </div>
+          </div>
+
+          <!-- Card Info Gedung -->
+          <div class="bg-blue-50/40 border border-blue-100 rounded-2xl p-3.5 flex items-center gap-3.5 mb-4">
+            <div class="w-11 h-11 rounded-xl bg-blue-100/70 text-[#0c406d] flex items-center justify-center flex-shrink-0">
+              <i data-lucide="building-2" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900 text-sm">Gedung ABC</h3>
+              <p id="result-building-type" class="text-xs text-slate-600 font-semibold">Perkantoran</p>
+              <p class="text-[11px] text-slate-400">Kec. Kebayoran Baru, Jakarta Selatan</p>
+            </div>
+          </div>
+
+          <!-- Ringkasan Kondisi Evaluasi -->
+          <div class="mb-4">
+            <h3 class="font-bold text-slate-900 text-xs mb-2.5">Ringkasan Kondisi</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+                </div>
+                <p class="text-xs text-slate-700">Informasi profil gedung: <span class="font-semibold text-slate-900">Lengkap</span></p>
+              </div>
+
+              <div class="flex items-center gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+                </div>
+                <p class="text-xs text-slate-700">Izin sudah dimiliki: <span id="result-owned-count" class="font-semibold text-slate-900">2 izin</span></p>
+              </div>
+
+              <div class="flex items-center gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-xs">
+                  !
+                </div>
+                <p class="text-xs text-slate-700">Perlu pengurusan izin baru: <span id="result-pending-count" class="font-semibold text-slate-900">3 perizinan</span></p>
+              </div>
+
+              <div class="flex items-center gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="file-text" class="w-3 h-3"></i>
+                </div>
+                <p class="text-xs text-slate-700">Dokumen berkas terunggah: <span id="result-doc-count" class="font-semibold text-slate-900">0 berkas</span></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Langkah Berikutnya Sesuai Hasil -->
+          <div class="mb-5">
+            <h3 class="font-bold text-slate-900 text-xs mb-2.5">Langkah Berikutnya</h3>
+            <div class="space-y-2.5">
+              <div class="flex items-start gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-sky-200 text-blue-900 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
+                <p class="text-xs text-slate-600">Lengkapi berkas teknis yang masih bertanda silang pada formulir evaluasi.</p>
+              </div>
+              <div class="flex items-start gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-sky-200 text-blue-900 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
+                <p class="text-xs text-slate-600">Siapkan dokumen pendukung sesuai checklist PTSP Jakarta Selatan.</p>
+              </div>
+              <div class="flex items-start gap-2.5">
+                <div class="w-5 h-5 rounded-full bg-sky-200 text-blue-900 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">3</div>
+                <p class="text-xs text-slate-600">Jadwalkan pendampingan langsung dengan tim teknis PTSP jika ada kendala.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-2">
+          <button onclick="alert('Permohonan Pendampingan PTSP Berhasil Diajukan!')" class="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition shadow-md text-sm">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+            <span>Ajukan Pendampingan PTSP</span>
+          </button>
+
+          <button onclick="alert('Mengunduh resume evaluasi gedung (PDF)...')" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition text-sm">
+            <i data-lucide="download" class="w-4 h-4 text-slate-600"></i>
+            <span>Unduh Ringkasan (PDF)</span>
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ==================== BOTTOM NAVBAR (Beranda) ==================== -->
+    <nav id="bottom-nav" class="bg-white border-t border-slate-200 px-6 py-2.5 flex items-center justify-around z-10">
+      <button onclick="goToScreen('screen-home')" class="flex flex-col items-center gap-1 text-[#0c406d]">
+        <i data-lucide="home" class="w-5 h-5"></i>
+        <span class="text-[11px] font-semibold">Beranda</span>
+      </button>
+      <button onclick="alert('Panduan Pelaporan & Regulasi Gedung')" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600">
+        <i data-lucide="book-open" class="w-5 h-5"></i>
+        <span class="text-[11px]">Panduan</span>
+      </button>
+      <button onclick="alert('Kontak Layanan PTSP Jakarta Selatan')" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600">
+        <i data-lucide="phone" class="w-5 h-5"></i>
+        <span class="text-[11px]">Kontak</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- SCRIPT LOGIKA KONTROL & STATE -->
+  <script>
+    lucide.createIcons();
+
+    let selectedBuilding = 'Perkantoran';
+
+    // State untuk Izin di Tahap 2
+    const permitStates = {
+      slf: { name: 'Sertifikat Laik Fungsi (SLF)', selected: false, file: null },
+      pbg: { name: 'Persetujuan Bangunan Gedung (PBG / IMB)', selected: false, file: null },
+      damkar: { name: 'Proteksi Kebakaran (Damkar)', selected: false, file: null },
+      k3: { name: 'Izin K3 Instalasi (Lift, Genset, Petir)', selected: false, file: null },
+      env: { name: 'Persetujuan Lingkungan & Andalalin', selected: false, file: null }
+    };
+
+    // Database Persyaratan Teknis untuk Tahap 3
+    const requirementDatabase = {
+      slf: {
+        title: 'Syarat Pengurusan SLF (Sertifikat Laik Fungsi)',
+        icon: 'building-2',
+        color: 'sky',
+        questions: [
+          'Apakah gambar As-Built Drawing (Arsitektur, Struktur, MEP) tersedia?',
+          'Apakah telah memiliki Laporan Hasil Kajian Teknis dari Pengkaji Teknis bersertifikat?',
+          'Apakah arsip berkas IMB / PBG terdahulu masih tersimpan lengkap?'
+        ]
+      },
+      pbg: {
+        title: 'Syarat Pengurusan PBG (Pengganti IMB)',
+        icon: 'file-text',
+        color: 'amber',
+        questions: [
+          'Apakah status sertifikat kepemilikan tanah (SHM/HGB) valid & tanpa sengketa?',
+          'Apakah telah memiliki dokumen KRK (Keterangan Rencana Kota) dari PTSP?',
+          'Apakah gambar rencana arsitektur dan kalkulasi struktur dibuat oleh arsitek ber-STRA?'
+        ]
+      },
+      damkar: {
+        title: 'Syarat Rekomendasi Proteksi Kebakaran (Damkar)',
+        icon: 'flame',
+        color: 'rose',
+        questions: [
+          'Apakah alat pemadam (APAR & Hydrant) telah diuji tekanan dalam 1 tahun terakhir?',
+          'Apakah alarm kebakaran otomatis dan detektor asap (smoke detector) aktif berfungsi?',
+          'Apakah gedung memiliki tim tanggap darurat / Fire Safety Manager bersertifikat?'
+        ]
+      },
+      k3: {
+        title: 'Syarat Pengesahan K3 (Lift, Genset, Petir)',
+        icon: 'zap',
+        color: 'yellow',
+        questions: [
+          'Apakah lift & eskalator memiliki laporan riksa uji berkala dari PJK3 resmi?',
+          'Apakah tahanan pentanahan instalasi penyalur petir memenuhi standar (di bawah 5 Ohm)?',
+          'Apakah operator genset dan teknisi lift memiliki Surat Izin Operasi (SIO) aktif?'
+        ]
+      },
+      env: {
+        title: 'Syarat Dokumen Lingkungan & Andalalin',
+        icon: 'leaf',
+        color: 'emerald',
+        questions: [
+          'Apakah dokumen lingkungan (AMDAL / UKL-UPL / SPPL) telah terdaftar di sistem KLHK?',
+          'Apakah sarana IPAL (Pengolahan Air Limbah) memiliki izin baku mutu / IPLC?',
+          'Apakah telah dilakukan kajian dampak lalu lintas (Andalalin) dengan Dishub?'
+        ]
+      }
+    };
+
+    function goToScreen(screenId) {
+      const screens = ['screen-home', 'screen-step1', 'screen-step2', 'screen-step3', 'screen-result'];
+      screens.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+
+      document.getElementById(screenId).classList.remove('hidden');
+
+      const bottomNav = document.getElementById('bottom-nav');
+      if (screenId === 'screen-home') {
+        bottomNav.classList.remove('hidden');
+      } else {
+        bottomNav.classList.add('hidden');
+      }
+
+      lucide.createIcons();
+    }
+
+    // Step 1: Pemilihan Jenis Gedung
+    function setBuildingType(type) {
+      selectedBuilding = type;
+      const items = document.querySelectorAll('.step1-item');
+      items.forEach(item => {
+        item.classList.remove('border-[#0c406d]', 'bg-blue-50/20');
+        item.classList.add('border-slate-200');
+
+        const ind = item.querySelector('.radio-indicator');
+        ind.classList.remove('border-[#0c406d]');
+        ind.classList.add('border-slate-300');
+        ind.querySelector('div').classList.add('bg-transparent');
+        ind.querySelector('div').classList.remove('bg-[#0c406d]');
+
+        const icon = item.querySelector('i');
+        if (icon) {
+          icon.classList.remove('text-[#0c406d]');
+          icon.classList.add('text-slate-600');
+        }
+      });
+
+      const current = event.currentTarget;
+      current.classList.add('border-[#0c406d]', 'bg-blue-50/20');
+      current.classList.remove('border-slate-200');
+
+      const ind = current.querySelector('.radio-indicator');
+      ind.classList.add('border-[#0c406d]');
+      ind.classList.remove('border-slate-300');
+      ind.querySelector('div').classList.remove('bg-transparent');
+      ind.querySelector('div').classList.add('bg-[#0c406d]');
+
+      const curIcon = current.querySelector('i');
+      if (curIcon) {
+        curIcon.classList.add('text-[#0c406d]');
+        curIcon.classList.remove('text-slate-600');
+      }
+    }
+
+    function goToStep2() {
+      document.getElementById('selected-building-badge').textContent = selectedBuilding;
+      document.getElementById('result-building-type').textContent = selectedBuilding;
+      goToScreen('screen-step2');
+    }
+
+    // Step 2: Toggle Izin Card
+    function togglePermitCard(key) {
+      const card = document.getElementById(`card-${key}`);
+      const checkbox = card.querySelector('.custom-checkbox');
+      const checkIcon = checkbox.querySelector('i');
+
+      permitStates[key].selected = !permitStates[key].selected;
+
+      if (permitStates[key].selected) {
+        card.classList.add('border-[#0c406d]', 'bg-blue-50/10');
+        card.classList.remove('border-slate-200');
+        checkbox.classList.add('bg-[#0c406d]', 'border-[#0c406d]');
+        checkbox.classList.remove('border-slate-300');
+        checkIcon.classList.remove('hidden');
+      } else {
+        card.classList.remove('border-[#0c406d]', 'bg-blue-50/10');
+        card.classList.add('border-slate-200');
+        checkbox.classList.remove('bg-[#0c406d]', 'border-[#0c406d]');
+        checkbox.classList.add('border-slate-300');
+        checkIcon.classList.add('hidden');
+      }
+    }
+
+    // Step 2: Upload File per item
+    function handleItemUpload(key, event) {
+      const file = event.target.files[0];
+      if (file) {
+        permitStates[key].file = file;
+
+        // Jika upload file, otomatis tandai izin sebagai terpilih
+        if (!permitStates[key].selected) {
+          togglePermitCard(key);
+        }
+
+        const previewContainer = document.getElementById(`preview-${key}`);
+        previewContainer.querySelector('.file-name').textContent = file.name;
+        previewContainer.classList.remove('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    function removeItemUpload(key) {
+      permitStates[key].file = null;
+      document.getElementById(`upload-${key}`).value = '';
+      document.getElementById(`preview-${key}`).classList.add('hidden');
+    }
+
+    // =========================================================================
+    // LOGIKA TAHAP 3: GENERATE PERSYARATAN BERDASARKAN YANG TIDAK DICENTANG
+    // =========================================================================
+    function goToStep3Requirements() {
+      const missingKeys = Object.keys(permitStates).filter(key => !permitStates[key].selected);
+      const container = document.getElementById('missing-requirements-list');
+      const badge = document.getElementById('missing-permits-badge');
+
+      container.innerHTML = '';
+
+      if (missingKeys.length === 0) {
+        // Jika semua sudah dicentang
+        badge.textContent = 'Semua Izin Terpenuhi';
+        badge.className = 'text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full';
+
+        container.innerHTML = `
+          <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto mb-2">
+              <i data-lucide="award" class="w-5 h-5"></i>
+            </div>
+            <h4 class="font-bold text-slate-800 text-sm">Luar Biasa! Semua Izin Terpenuhi</h4>
+            <p class="text-xs text-slate-600 mt-1">Gedung Anda telah memiliki seluruh izin dasar. Pastikan seluruh dokumen tetap diperpanjang masa berlakunya tepat waktu.</p>
+          </div>
+        `;
+      } else {
+        badge.textContent = `${missingKeys.length} Izin Perlu Diurus`;
+        badge.className = 'text-[11px] font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full';
+
+        // Tampilkan persyaratan untuk masing-masing izin yang TIDAK DICENTANG
+        missingKeys.forEach(key => {
+          const req = requirementDatabase[key];
+          if (!req) return;
+
+          const cardHtml = `
+            <div class="border border-slate-200 rounded-2xl p-3.5 bg-white shadow-sm">
+              <div class="flex items-center gap-2 mb-2.5 pb-2 border-b border-slate-100">
+                <div class="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[#0c406d]">
+                  <i data-lucide="${req.icon}" class="w-3.5 h-3.5"></i>
+                </div>
+                <h4 class="text-xs font-bold text-slate-800">${req.title}</h4>
+              </div>
+
+              <div class="space-y-2">
+                ${req.questions.map((q, idx) => `
+                  <label class="flex items-start gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900">
+                    <input type="checkbox" class="rounded text-[#0c406d] focus:ring-0 mt-0.5 border-slate-300 w-3.5 h-3.5">
+                    <span class="text-[11px] leading-tight">${q}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          `;
+          container.innerHTML += cardHtml;
+        });
+      }
+
+      goToScreen('screen-step3');
+    }
+
+    // Selesaikan Self-Check dan tampilkan hasil
+    function finishSelfCheck() {
+      let ownedCount = 0;
+      let docCount = 0;
+
+      Object.keys(permitStates).forEach(key => {
+        if (permitStates[key].selected) ownedCount++;
+        if (permitStates[key].file) docCount++;
+      });
+
+      const pendingCount = 5 - ownedCount;
+
+      document.getElementById('result-owned-count').textContent = `${ownedCount} izin lengkap`;
+      document.getElementById('result-pending-count').textContent = `${pendingCount} izin perlu diurus`;
+      document.getElementById('result-doc-count').textContent = `${docCount} berkas fisik`;
+
+      goToScreen('screen-result');
+    }
+  </script>
+</body>
+</html>
