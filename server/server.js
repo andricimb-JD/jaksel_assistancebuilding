@@ -345,6 +345,58 @@ app.delete("/api/state/:key", async (req, res) => {
 });
 
 app.use(express.static(distPath));
+// Route API
+app.get("/api/health", async (_req, res) => {
+  // ...
+});
+
+app.get("/api/state", async (_req, res) => {
+  // ...
+});
+
+app.get("/api/users", async (_req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      error: "Database MySQL belum tersedia"
+    });
+  }
+
+  try {
+    const [rows] = await db.query(`
+      SELECT id, username, email, role, created_at, updated_at
+      FROM app_users
+      ORDER BY username ASC
+    `);
+
+    res.json(rows);
+  } catch (error) {
+    console.error("Gagal membaca pengguna:", error.message);
+
+    res.status(500).json({
+      error: "Gagal membaca data pengguna"
+    });
+  }
+});
+
+app.post("/api/users", async (req, res) => {
+  // kode POST user
+});
+
+app.put("/api/users/:id", async (req, res) => {
+  // kode PUT user
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+  // kode DELETE user
+});
+
+// Static frontend
+app.use(express.static(distPath));
+
+// Harus paling akhir
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
 
 app.get("*", (_req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
