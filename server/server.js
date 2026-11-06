@@ -68,6 +68,19 @@ async function initializeDatabase() {
         ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  
+  await db.query(`
+  CREATE TABLE IF NOT EXISTS app_users (
+    id VARCHAR(100) PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(190) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ON UPDATE CURRENT_TIMESTAMP
+  )
+`);
 
   console.log("Database berhasil diinisialisasi");
 }
