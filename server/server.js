@@ -398,9 +398,6 @@ app.get("*", (_req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
-});
 
 initializeDatabase()
   .catch((error) => {
