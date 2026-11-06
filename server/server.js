@@ -57,6 +57,14 @@ async function initializeDatabase() {
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP
     )
+      await db.query(`
+    CREATE TABLE IF NOT EXISTS app_state (
+      state_key VARCHAR(150) PRIMARY KEY,
+      state_value LONGTEXT NOT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
   `);
 
   console.log("Database berhasil diinisialisasi");
@@ -64,6 +72,13 @@ async function initializeDatabase() {
 
 app.get("/api/health", async (_req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({
+        ok: false,
+        database: "disconnected"
+      });
+    }
+
     await db.query("SELECT 1");
 
     res.json({
@@ -106,7 +121,7 @@ app.get("/api/bantuan", async (_req, res) => {
   }
 });
 
-app.post("/api/bantuan", async (req, res) => {
+app.post("bantuan", async (req, res) => {
   try {
     const {
       nama,
@@ -216,6 +231,101 @@ app.delete("/api/bantuan/:id", async (req, res) => {
     console.error("Gagal menghapus data bantuan:", error.message);
     res.status(500).json({
       error: "Gagal menghapus data bantuan"
+    });
+  }
+});
+app.get("/api/state", async (_req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      error: "Database MySQL belum tersedia"
+    });
+  }
+
+  try {
+    const [rows] = await db.query(
+      "SELECT state_key, state_value FROM app_state"
+    );
+
+    const state = Object.fromEntries(
+      rows.map((row) => [row.state_key, row.state_value])
+    );
+
+    res.json(state);
+  } catch (error) {
+    console.error("Gagal membaca state aplikasi:", error.message);
+
+    res.status(500).json({
+      error: "Gagal membaca state aplikasi"
+    });
+  }
+});
+
+app.put("/api/state", async (req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      error: "Database MySQL belum tersedia"
+    });
+  }
+
+  const { key, value } = req.body;
+
+  if (typeof key !== "string" || !key) {
+    return res.status(400).json({
+      error: "key wajib diisi"
+    });
+  }
+
+  if (typeof value !== "string") {
+    return res.status(400).json({
+      error: "value harus berupa teks"
+    });
+  }
+
+  try {
+    await db.query(
+      `
+        INSERT INTO app_state (state_key, state_value)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE
+          state_value = VALUES(state_value),
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [key, value]
+    );
+
+    res.json({
+      ok: true
+    });
+  } catch (error) {
+    console.error("Gagal menyimpan state aplikasi:", error.message);
+
+    res.status(500).json({
+      error: "Gagal menyimpan state aplikasi"
+    });
+  }
+});
+
+app.delete("/api/state/:key", async (req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      error: "Database MySQL belum tersedia"
+    });
+  }
+
+  try {
+    await db.query(
+      "DELETE FROM app_state WHERE state_key = ?",
+      [req.params.key]
+    );
+
+    res.json({
+      ok: true
+    });
+  } catch (error) {
+    console.error("Gagal menghapus state aplikasi:", error.message);
+
+    res.status(500).json({
+      error: "Gagal menghapus state aplikasi"
     });
   }
 });
