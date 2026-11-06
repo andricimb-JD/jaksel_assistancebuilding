@@ -122,7 +122,7 @@ app.get("/api/bantuan", async (_req, res) => {
   }
 });
 
-app.post("bantuan", async (req, res) => {
+app.post("/api/bantuan", async (req, res) => {
   try {
     const {
       nama,
