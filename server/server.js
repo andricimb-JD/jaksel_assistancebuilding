@@ -44,6 +44,7 @@ app.use(express.json({ limit: "1mb" }));
 
 async function initializeDatabase() {
   if (!db) return;
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS app_records (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -57,7 +58,9 @@ async function initializeDatabase() {
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP
     )
-      await db.query(`
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS app_state (
       state_key VARCHAR(150) PRIMARY KEY,
       state_value LONGTEXT NOT NULL,
@@ -65,11 +68,9 @@ async function initializeDatabase() {
         ON UPDATE CURRENT_TIMESTAMP
     )
   `);
-  `);
 
   console.log("Database berhasil diinisialisasi");
 }
-
 app.get("/api/health", async (_req, res) => {
   try {
     if (!db) {
