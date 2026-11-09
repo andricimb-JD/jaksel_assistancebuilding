@@ -90,13 +90,33 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-
 app.get("/api/state", async (_req, res) => {
   if (!db) return res.status(503).json({ error: "Database MySQL belum tersedia" });
   try {
     const [rows] = await db.query("SELECT state_key, state_value FROM app_state");
     const state = Object.fromEntries(rows.map((row) => [row.state_key, row.state_value]));
     res.json(state);
+  } catch (error) {
+    console.error("Gagal membaca state aplikasi:", error.message);
+    res.status(500).json({ error: "Gagal membaca state aplikasi" });
+  }
+});
+
+app.get("/api/state/:key", async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Database MySQL belum tersedia" });
+  try {
+    const [rows] = await db.query(
+      "SELECT state_value FROM app_state WHERE state_key = ?",
+      [req.params.key]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "State tidak ditemukan" });
+    }
+    try {
+      return res.json(JSON.parse(rows[0].state_value));
+    } catch {
+      return res.json(rows[0].state_value);
+    }
   } catch (error) {
     console.error("Gagal membaca state aplikasi:", error.message);
     res.status(500).json({ error: "Gagal membaca state aplikasi" });
@@ -182,14 +202,7 @@ app.post("/api/bantuan", async (req, res) => {
           (nama, email, kategori, deskripsi, status, tanggal)
         VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
       `,
-      [
-        nama,
-        email,
-        kategori,
-        deskripsi,
-        status,
-        tanggal || null
-      ]
+      [nama, email, kategori, deskripsi, status, tanggal || null]
     );
 
     const [rows] = await db.query(
