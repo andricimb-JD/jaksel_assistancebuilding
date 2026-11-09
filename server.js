@@ -12,7 +12,7 @@ const port = Number(process.env.PORT || 3000);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const distPath = path.join(__dirname, "..", "dist");
+const distPath = path.join(__dirname, "dist");
 
 const requiredEnv = [
   "DB_HOST",
