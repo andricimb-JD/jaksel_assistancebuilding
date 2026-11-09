@@ -94,7 +94,13 @@ app.get("/api/state", async (_req, res) => {
   if (!db) return res.status(503).json({ error: "Database MySQL belum tersedia" });
   try {
     const [rows] = await db.query("SELECT state_key, state_value FROM app_state");
-    const state = Object.fromEntries(rows.map((row) => [row.state_key, row.state_value]));
+    const state = Object.fromEntries(rows.map((row) => {
+      try {
+        return [row.state_key, JSON.parse(row.state_value)];
+      } catch {
+        return [row.state_key, row.state_value];
+      }
+    }));
     res.json(state);
   } catch (error) {
     console.error("Gagal membaca state aplikasi:", error.message);
@@ -104,10 +110,11 @@ app.get("/api/state", async (_req, res) => {
 
 app.get("/api/state/:key", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database MySQL belum tersedia" });
+  const stateKey = req.params.key === "permits" ? "kp_permits" : req.params.key;
   try {
     const [rows] = await db.query(
       "SELECT state_value FROM app_state WHERE state_key = ?",
-      [req.params.key]
+      [stateKey]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: "State tidak ditemukan" });
