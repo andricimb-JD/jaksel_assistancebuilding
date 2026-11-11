@@ -59,8 +59,11 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
   onLogout,
   onNavigateSuperAdmin
 }) => {
-  // Current screen: 'home' | 'step1' | 'step2' | 'step3' | 'result'
-  const [screen, setScreen] = useState<'home' | 'step1' | 'step2' | 'step3' | 'result'>('home');
+  // Current screen: 'home' | 'step0' | 'step1' | 'step2' | 'step3' | 'result'
+  const [screen, setScreen] = useState<'home' | 'step0' | 'step1' | 'step2' | 'step3' | 'result'>('home');
+
+  // Pra-Langkah 1: Identifikasi Pemilik Gedung vs Pemilik Prasarana
+  const [ownershipRole, setOwnershipRole] = useState<'Pemilik Gedung' | 'Hanya Pemilik Prasarana'>('Pemilik Gedung');
 
   // Fullscreen 4D Modal
   const [show4DFullscreen, setShow4DFullscreen] = useState<boolean>(false);
@@ -81,24 +84,32 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     validity?: 'berlaku' | 'habis';
     damkarRkk?: boolean;
     damkarSkk?: boolean;
-    reklameJenis?: 'Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage' | 'Kain / Banner';
+    reklameJenis?: 'Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage';
+    reklameJenisList?: ('Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage')[];
   }>>({
+    reklame: { 
+      name: 'Izin Penyelenggaraan Reklame (IPR)', 
+      selected: false, 
+      fileName: null, 
+      validity: 'berlaku', 
+      reklameJenis: 'Papan / Billboard',
+      reklameJenisList: ['Papan / Billboard']
+    },
     slf: { name: 'Sertifikat Laik Fungsi (SLF)', selected: false, fileName: null, validity: 'berlaku' },
     pbg: { name: 'Persetujuan Bangunan Gedung (PBG / IMB)', selected: false, fileName: null, validity: 'berlaku' },
     damkar: { name: 'Proteksi Kebakaran (Damkar)', selected: false, fileName: null, validity: 'berlaku', damkarRkk: false, damkarSkk: false },
     k3: { name: 'Izin K3 Instalasi (Lift, Genset, Petir)', selected: false, fileName: null, validity: 'berlaku' },
-    env: { name: 'Persetujuan Lingkungan & Andalalin', selected: false, fileName: null, validity: 'berlaku' },
-    reklame: { name: 'Izin Penyelenggaraan Reklame (IPR)', selected: false, fileName: null, validity: 'berlaku', reklameJenis: 'Papan / Billboard' }
+    env: { name: 'Persetujuan Lingkungan & Andalalin', selected: false, fileName: null, validity: 'berlaku' }
   });
 
   // Step 3: Checkbox Persyaratan Teknis yang sudah siap ('ada' | 'tidak_ada')
   const [preparedRequirements, setPreparedRequirements] = useState<Record<string, Record<string | number, 'ada' | 'tidak_ada' | boolean>>>({
+    reklame: {},
     slf: {},
     pbg: {},
     damkar: {},
     k3: {},
-    env: {},
-    reklame: {}
+    env: {}
   });
 
   // Modals
@@ -443,16 +454,41 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     });
   };
 
-  // Handle setting Reklame jenis ('Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage' | 'Kain / Banner')
-  const handleSetReklameJenis = (jenis: 'Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage' | 'Kain / Banner') => {
+  // Handle setting Reklame jenis ('Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage')
+  const handleSetReklameJenis = (jenis: 'Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage') => {
     setPermitStates(prev => ({
       ...prev,
       reklame: {
         ...prev.reklame,
         selected: true,
-        reklameJenis: jenis
+        reklameJenis: jenis,
+        reklameJenisList: [jenis]
       }
     }));
+  };
+
+  // Handle toggling Reklame jenis cheklis ('Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage')
+  const handleToggleReklameJenis = (jenis: 'Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage') => {
+    setPermitStates(prev => {
+      const currentList = prev.reklame.reklameJenisList || (prev.reklame.reklameJenis ? [prev.reklame.reklameJenis] : ['Papan / Billboard']);
+      const exists = currentList.includes(jenis);
+      let nextList: ('Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage')[];
+      if (exists) {
+        nextList = currentList.filter(j => j !== jenis);
+        if (nextList.length === 0) nextList = [jenis]; // minimal tetap ada 1 pilihan jika aktif
+      } else {
+        nextList = [...currentList, jenis];
+      }
+      return {
+        ...prev,
+        reklame: {
+          ...prev.reklame,
+          selected: true,
+          reklameJenis: nextList[0] || jenis,
+          reklameJenisList: nextList
+        }
+      };
+    });
   };
 
   // Set requirement status ('ada' | 'tidak_ada')
@@ -479,11 +515,21 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     handleSetRequirementStatus(permitKey, qIdx, 'ada');
   };
 
-  // Missing permits keys
-  const missingPermitKeys = Object.keys(permitStates).filter(k => !permitStates[k].selected);
-  const ownedPermitsCount = Object.keys(permitStates).filter(k => permitStates[k].selected).length;
+  // Missing permits keys based on role
+  const missingPermitKeys = Object.keys(permitStates).filter(k => {
+    if (ownershipRole === 'Hanya Pemilik Prasarana') {
+      return k === 'reklame';
+    }
+    return k !== 'reklame' && !permitStates[k].selected;
+  });
+  const ownedPermitsCount = Object.keys(permitStates).filter(k => {
+    if (ownershipRole === 'Hanya Pemilik Prasarana') {
+      return k === 'reklame' && permitStates.reklame.selected;
+    }
+    return k !== 'reklame' && permitStates[k].selected;
+  }).length;
   const uploadedFilesCount = Object.keys(permitStates).filter(k => permitStates[k].fileName !== null).length;
-  const totalPermitsCount = Object.keys(permitStates).length;
+  const totalPermitsCount = ownershipRole === 'Hanya Pemilik Prasarana' ? 1 : 5;
 
   const buildingName = currentUser.buildingName || currentUser.companyName || 'Gedung Surya Tower';
   const districtName = 'Jakarta Selatan';
@@ -761,7 +807,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                 <div className="space-y-3">
                   {/* Card 1: Mulai Self-Check */}
                   <div 
-                    onClick={() => setScreen('step1')} 
+                    onClick={() => setScreen('step0')} 
                     className="cursor-pointer bg-[#0c406d] hover:bg-[#083053] text-white p-4 rounded-2xl flex items-center gap-3.5 transition shadow-md shadow-[#0c406d]/20 group"
                   >
                     <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
@@ -776,7 +822,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
 
                   {/* Card 2: Lanjutkan Self-Check */}
                   <div 
-                    onClick={() => setScreen(ownedPermitsCount > 0 ? 'step2' : 'step1')} 
+                    onClick={() => setScreen(ownedPermitsCount > 0 ? 'step2' : 'step0')} 
                     className="cursor-pointer bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 p-4 rounded-2xl flex items-center gap-3.5 transition shadow-xs group"
                   >
                     <div className="w-11 h-11 rounded-xl border border-slate-200 bg-sky-50 flex items-center justify-center shrink-0 text-[#0c406d]">
@@ -838,6 +884,302 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
             </section>
           )}
 
+          {/* ========================================================================= */}
+          {/* SCREEN: SEBELUM LANGKAH 1 (Identifikasi Pemilik Gedung vs Pemilik Prasarana) */}
+          {/* ========================================================================= */}
+          {screen === 'step0' && (
+            <section className="flex-1 flex flex-col justify-between animate-fade-in">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <button 
+                    onClick={() => setScreen('home')} 
+                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-700 transition cursor-pointer"
+                    title="Kembali ke Beranda"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-base leading-tight">Self-Check Gedung &amp; Prasarana</h2>
+                    <p className="text-[11px] text-slate-500">Tahap Kualifikasi Objek Evaluasi</p>
+                  </div>
+                </div>
+
+                {/* Stepper: Pra-Langkah Active */}
+                <div className="flex items-center justify-center gap-2 py-2 mb-4">
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0c406d] text-white text-xs font-bold shadow-sm ring-4 ring-sky-100">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Tahap Awal</span>
+                  </div>
+                  <span className="w-6 h-0.5 bg-slate-200" />
+                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">1</div>
+                  <span className="w-6 h-0.5 bg-slate-200" />
+                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">2</div>
+                  <span className="w-6 h-0.5 bg-slate-200" />
+                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">3</div>
+                  <span className="w-6 h-0.5 bg-slate-200" />
+                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">4</div>
+                </div>
+
+                <div className="mb-4">
+                  <span className="text-xs text-[#0c406d] font-bold uppercase tracking-wider bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+                    Pra-Langkah 1
+                  </span>
+                  <h3 className="font-extrabold text-slate-900 text-lg mt-2 leading-tight">
+                    Apakah Anda Pemilik Gedung atau Pemilik Prasarana?
+                  </h3>
+                  <p className="font-medium text-slate-600 text-xs sm:text-sm mt-1 leading-relaxed">
+                    Pilih salah satu cheklis di bawah ini agar materi evaluasi perizinan dan kelaikan fungsi disesuaikan dengan peran kepemilikan Anda:
+                  </p>
+                </div>
+
+                {/* 2 Opsi Cheklis: Pemilik Gedung vs Hanya Pemilik Prasarana */}
+                <div className="space-y-3.5">
+                  {/* Opsi 1: Cheklis Pemilik Gedung */}
+                  <div 
+                    onClick={() => setOwnershipRole('Pemilik Gedung')}
+                    className={`flex items-start justify-between p-4 sm:p-5 rounded-2xl border-2 transition cursor-pointer select-none ${
+                      ownershipRole === 'Pemilik Gedung'
+                        ? 'border-[#0c406d] bg-sky-50/50 shadow-md ring-4 ring-sky-100'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1 mr-3">
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mt-0.5 shrink-0 transition ${
+                        ownershipRole === 'Pemilik Gedung' 
+                          ? 'bg-[#0c406d] border-[#0c406d] text-white shadow-xs' 
+                          : 'border-slate-300 bg-white'
+                      }`}>
+                        {ownershipRole === 'Pemilik Gedung' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-sm sm:text-base font-extrabold text-slate-900">
+                            Pemilik Gedung
+                          </h4>
+                          <span className="text-[10px] font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
+                            Kelaikan Gedung Menyeluruh
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                          Pemilik, pengelola, atau perwakilan badan usaha pengelola <strong>bangunan gedung seutuhnya</strong>. Bertanggung jawab atas kelaikan struktur, arsitektur, proteksi kebakaran (Damkar), K3 instalasi mekanikal/elektrikal (lift, genset, petir), lingkungan hidup, dan reklame gedung.
+                        </p>
+                        <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-500">
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">SLF Gedung</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">PBG / IMB</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">Damkar RKK/SKK</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">K3 Instalasi</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">Lingkungan</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-[#0c406d] flex items-center justify-center text-white shrink-0 shadow-md border-t border-l border-white/40 border-b-2 border-r-2 border-black/20">
+                      <Building2 className="w-6 h-6 drop-shadow-sm" />
+                    </div>
+                  </div>
+
+                  {/* Opsi 2: Cheklis Hanya Pemilik Prasarana */}
+                  <div 
+                    onClick={() => {
+                      setOwnershipRole('Hanya Pemilik Prasarana');
+                      setPermitStates(prev => ({
+                        ...prev,
+                        reklame: {
+                          ...prev.reklame,
+                          selected: true
+                        }
+                      }));
+                    }}
+                    className={`flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition cursor-pointer select-none ${
+                      ownershipRole === 'Hanya Pemilik Prasarana'
+                        ? 'border-purple-600 bg-purple-50/50 shadow-md ring-4 ring-purple-100'
+                        : 'border-slate-200 hover:border-purple-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between w-full">
+                      <div className="flex items-start gap-3.5 min-w-0 flex-1 mr-3">
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mt-0.5 shrink-0 transition ${
+                          ownershipRole === 'Hanya Pemilik Prasarana' 
+                            ? 'bg-purple-600 border-purple-600 text-white shadow-xs' 
+                            : 'border-slate-300 bg-white'
+                        }`}>
+                          {ownershipRole === 'Hanya Pemilik Prasarana' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm sm:text-base font-extrabold text-slate-900">
+                              Hanya Pemilik Prasarana
+                            </h4>
+                            <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                              Fokus Prasarana &amp; IPR Reklame
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                            Pemilik, vendor advertising, atau penyelenggara <strong>prasarana komersial</strong> (seperti Papan Reklame/Billboard, Megatron/Videotron LED, Neon Box Fasad, atau Sarana Menara) yang terpasang pada bangunan atau persil tanah tanpa memiliki keseluruhan gedung induk.
+                          </p>
+                          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-purple-700">
+                            <span className="px-2 py-0.5 rounded bg-purple-100/70 border border-purple-200">Izin Reklame (IPR JakEVO)</span>
+                            <span className="px-2 py-0.5 rounded bg-purple-100/70 border border-purple-200">Pajak Reklame Bapenda</span>
+                            <span className="px-2 py-0.5 rounded bg-purple-100/70 border border-purple-200">Konstruksi Prasarana</span>
+                            <span className="px-2 py-0.5 rounded bg-purple-100/70 border border-purple-200">Kelistrikan &amp; LED</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-900 flex items-center justify-center text-white shrink-0 shadow-md border-t border-l border-white/40 border-b-2 border-r-2 border-black/20">
+                        <Megaphone className="w-6 h-6 drop-shadow-sm" />
+                      </div>
+                    </div>
+
+                    {/* Penyelenggara Reklame Gedung (IPR) - Terpasang di Pilihan Pemilik Prasarana */}
+                    {ownershipRole === 'Hanya Pemilik Prasarana' && (
+                      <div 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="mt-4 pt-3.5 border-t border-purple-200/80 w-full animate-fade-in"
+                      >
+                        <div className="p-3.5 bg-white/95 border border-purple-200 rounded-2xl space-y-3 shadow-xs">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-purple-600" />
+                              <h5 className="text-xs sm:text-sm font-bold text-slate-900">
+                                Penyelenggara Reklame Gedung (IPR)
+                              </h5>
+                              <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                                JakEVO PTSP
+                              </span>
+                            </div>
+
+                            {/* Validity toggle */}
+                            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[10px] font-semibold">
+                              <button
+                                type="button"
+                                onClick={() => handleSetPermitValidity('reklame', 'berlaku')}
+                                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                                  permitStates.reklame.validity !== 'habis'
+                                    ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                                    : 'text-slate-500 hover:text-slate-900'
+                                }`}
+                              >
+                                Izin Masih Berlaku
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetPermitValidity('reklame', 'habis')}
+                                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                                  permitStates.reklame.validity === 'habis'
+                                    ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                                    : 'text-slate-500 hover:text-slate-900'
+                                }`}
+                              >
+                                Habis Masa Berlaku
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-slate-600 leading-snug">
+                            Tentukan jenis prasarana reklame komersial yang Anda selenggarakan pada bangunan gedung:
+                          </p>
+
+                          {/* 3 Opsi Jenis Reklame dengan Cheklis */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {[
+                              { jenis: 'Papan / Billboard' as const, label: 'Papan / Billboard', sub: 'Konstruksi fisik di halaman/atap gedung' },
+                              { jenis: 'Megatron / Videotron / LED' as const, label: 'Megatron / Videotron / LED', sub: 'Layar digital & videotron pada fasad' },
+                              { jenis: 'Neon Box / Signage' as const, label: 'Neon Box / Signage Fasad', sub: 'Signage nama tenant & logo iluminasi' }
+                            ].map((opt) => {
+                              const currentList = permitStates.reklame.reklameJenisList || (permitStates.reklame.reklameJenis ? [permitStates.reklame.reklameJenis] : ['Papan / Billboard']);
+                              const isChecked = currentList.includes(opt.jenis);
+                              return (
+                                <div
+                                  key={opt.jenis}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleToggleReklameJenis(opt.jenis);
+                                  }}
+                                  className={`cursor-pointer flex items-start gap-2.5 p-2.5 rounded-xl border transition select-none ${
+                                    isChecked
+                                      ? 'bg-purple-50/70 border-purple-600 shadow-xs ring-2 ring-purple-200'
+                                      : 'bg-white border-slate-200 hover:border-purple-300 hover:bg-purple-50/20'
+                                  }`}
+                                >
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition ${
+                                    isChecked 
+                                      ? 'bg-purple-600 border-purple-600 text-white' 
+                                      : 'border-slate-300 bg-white'
+                                  }`}>
+                                    {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                                      {opt.label}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 leading-tight block mt-0.5">
+                                      {opt.sub}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* File Upload for IPR */}
+                          <div className="pt-2 border-t border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-[10px] text-purple-900">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
+                              <span className="font-semibold text-slate-700">Kepatuhan Pajak Reklame Bapenda DKI:</span>
+                              <span className="text-slate-500 italic">Wajib SKPD &amp; SSPD berjalan</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {permitStates.reklame.fileName ? (
+                                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 truncate max-w-[150px]">
+                                  {permitStates.reklame.fileName}
+                                </span>
+                              ) : null}
+                              <label className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-purple-900 bg-purple-100 hover:bg-purple-200 rounded-lg cursor-pointer transition border border-purple-300">
+                                <Upload className="w-3 h-3 text-purple-700" />
+                                <span>{permitStates.reklame.fileName ? 'Ganti Berkas IPR' : 'Unggah IPR (Opsional)'}</span>
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => handleItemUpload('reklame', e)}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6">
+                <button 
+                  onClick={() => {
+                    if (ownershipRole === 'Hanya Pemilik Prasarana') {
+                      setPermitStates(prev => ({
+                        ...prev,
+                        reklame: {
+                          ...prev.reklame,
+                          selected: true
+                        }
+                      }));
+                    }
+                    setScreen('step1');
+                  }} 
+                  className="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md cursor-pointer"
+                >
+                  <span>Lanjutkan ke Langkah 1: Kenali Gedung Anda</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* ========================================================= */}
           {/* SCREEN 2: TAHAP 1 (Fungsi Utama Bangunan Gedung)           */}
           {/* ========================================================= */}
@@ -845,19 +1187,52 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
             <section className="flex-1 flex flex-col justify-between animate-fade-in">
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setScreen('home')} className="p-1 hover:bg-slate-100 rounded-lg text-slate-700">
+                  <button onClick={() => setScreen('step0')} className="p-1 hover:bg-slate-100 rounded-lg text-slate-700 transition cursor-pointer" title="Kembali ke Pemilihan Peran">
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <h2 className="font-bold text-slate-900 text-base">Self-Check Gedung</h2>
                 </div>
 
                 {/* Stepper: 1 Active */}
-                <div className="flex items-center justify-center gap-3 py-2 mb-4">
+                <div className="flex items-center justify-center gap-3 py-2 mb-3">
                   <div className="w-8 h-8 rounded-full bg-[#0c406d] text-white flex items-center justify-center font-bold text-xs shadow-sm ring-4 ring-sky-100">1</div>
                   <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">2</div>
                   <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">3</div>
                   <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-semibold text-xs">4</div>
                 </div>
+
+                {/* Role Badge Indicator */}
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 mb-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 font-medium">Status Pemohon:</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                      ownershipRole === 'Pemilik Gedung' 
+                        ? 'bg-sky-100 text-[#0c406d] border border-sky-200' 
+                        : 'bg-purple-100 text-purple-800 border border-purple-200'
+                    }`}>
+                      {ownershipRole}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => setScreen('step0')}
+                    className="text-[#0c406d] font-bold hover:underline cursor-pointer text-[11px]"
+                  >
+                    Ubah
+                  </button>
+                </div>
+
+                {/* Banner Mode Pemilik Prasarana */}
+                {ownershipRole === 'Hanya Pemilik Prasarana' && (
+                  <div className="mb-4 p-3 rounded-xl bg-purple-50/80 border border-purple-200 text-xs text-purple-950 flex items-start gap-2.5">
+                    <Megaphone className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block">Mode Penyelenggara Prasarana Aktif</span>
+                      <span className="text-[11px] text-purple-900 leading-snug block mt-0.5">
+                        Tentukan fungsi gedung tempat prasarana Anda terpasang, lalu sesuaikan cheklis jenis reklame (IPR) Anda pada panel di bawah.
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mb-4">
                   <span className="text-xs text-slate-500 font-medium">Langkah 1 dari 4</span>
@@ -951,10 +1326,16 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
 
               <div className="pt-6">
                 <button 
-                  onClick={() => setScreen('step2')} 
-                  className="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md"
+                  onClick={() => {
+                    if (ownershipRole === 'Hanya Pemilik Prasarana') {
+                      setScreen('step3');
+                    } else {
+                      setScreen('step2');
+                    }
+                  }} 
+                  className="w-full bg-[#0c406d] hover:bg-[#093256] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md cursor-pointer"
                 >
-                  <span>Lanjutkan ke Tahap 2</span>
+                  <span>{ownershipRole === 'Hanya Pemilik Prasarana' ? 'Lanjutkan ke Evaluasi Syarat IPR' : 'Lanjutkan ke Tahap 2'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -997,19 +1378,17 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                   </p>
                 </div>
 
-                {/* 6 Permit Items */}
+                {/* 5 Permit Items */}
                 <div className="space-y-3">
                   {[
                     { key: 'slf', title: 'Sertifikat Laik Fungsi (SLF)', desc: 'Gedung sudah memiliki sertifikat kelaikan operasi berkala resmi.' },
                     { key: 'pbg', title: 'Persetujuan Bangunan Gedung (PBG / IMB)', desc: 'Memiliki surat izin konstruksi fisik & arsitektur resmi terdahulu.' },
                     { key: 'damkar', title: 'Proteksi Kebakaran (Damkar)', desc: 'Memiliki sertifikasi berkala instalasi proteksi kebakaran aktif/pasif.' },
                     { key: 'k3', title: 'Izin K3 Instalasi (Lift, Genset, Petir)', desc: 'Telah memiliki pengesahan riksa uji instalasi dari Disnakertrans DKI.' },
-                    { key: 'env', title: 'Persetujuan Lingkungan & Andalalin', desc: 'Memiliki persetujuan teknis AMDAL/UKL-UPL dan rekomendasi lalu lintas.' },
-                    { key: 'reklame', title: 'Izin Penyelenggaraan Reklame (IPR)', desc: 'Izin pemasangan reklame papan/billboard, megatron/videotron LED, neon box pada fasad/halaman gedung.' }
+                    { key: 'env', title: 'Persetujuan Lingkungan & Andalalin', desc: 'Memiliki persetujuan teknis AMDAL/UKL-UPL dan rekomendasi lalu lintas.' }
                   ].map((item) => {
                     const state = permitStates[item.key];
                     const isDamkar = item.key === 'damkar';
-                    const isReklame = item.key === 'reklame';
 
                     return (
                       <div 
@@ -1173,76 +1552,6 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                           </div>
                         )}
 
-                        {/* Pilihan Khusus Izin Penyelenggaraan Reklame (IPR) */}
-                        {isReklame && (
-                          <div className="p-3 bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-white border border-purple-200/90 rounded-xl space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-purple-950 flex items-center gap-1.5">
-                                <Megaphone className="w-3.5 h-3.5 text-purple-700" />
-                                <span>Pilihan Jenis Reklame Gedung:</span>
-                              </span>
-                              <span className="text-[9px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                                JakEVO PTSP
-                              </span>
-                            </div>
-
-                            {/* 4 Opsi Jenis Reklame */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {[
-                                { jenis: 'Papan / Billboard' as const, label: 'Papan / Billboard', sub: 'Konstruksi fisik di halaman/atap gedung' },
-                                { jenis: 'Megatron / Videotron / LED' as const, label: 'Megatron / Videotron / LED', sub: 'Layar digital & videotron pada fasad' },
-                                { jenis: 'Neon Box / Signage' as const, label: 'Neon Box / Signage Fasad', sub: 'Signage nama tenant & logo iluminasi' },
-                                { jenis: 'Kain / Banner' as const, label: 'Kain / Baliho / Banner Promosi', sub: 'Spanduk & materi promosi berkala' }
-                              ].map((opt) => {
-                                const isCurrentJenis = state.reklameJenis === opt.jenis;
-                                return (
-                                  <div
-                                    key={opt.jenis}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleSetReklameJenis(opt.jenis);
-                                    }}
-                                    className={`cursor-pointer flex items-start gap-2.5 p-2 rounded-xl border transition select-none ${
-                                      state.selected && isCurrentJenis
-                                        ? 'bg-white border-purple-600 shadow-xs ring-2 ring-purple-200'
-                                        : 'bg-white/80 border-slate-200 hover:border-purple-300 hover:bg-purple-50/30'
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name="reklame_jenis_radio"
-                                      checked={state.selected && isCurrentJenis}
-                                      onChange={() => {}}
-                                      className="w-3.5 h-3.5 text-purple-600 focus:ring-0 mt-0.5 cursor-pointer accent-purple-600 pointer-events-none"
-                                    />
-                                    <div className="min-w-0">
-                                      <span className="text-xs font-bold text-slate-900 block leading-tight">
-                                        {opt.label}
-                                      </span>
-                                      <span className="text-[10px] text-slate-500 leading-tight block mt-0.5">
-                                        {opt.sub}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-
-                            <div className="pt-1.5 border-t border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10px] text-purple-900">
-                              <span className="font-semibold flex items-center gap-1 text-slate-700">
-                                <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
-                                <span>Kepatuhan Pajak Reklame Bapenda DKI:</span>
-                              </span>
-                              <span className="text-slate-500 italic">
-                                Wajib melampirkan SKPD & bukti SSPD Pajak Reklame berjalan
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
                         {/* File Upload Section */}
                         <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
                           <div className="flex items-center justify-between">
@@ -1300,7 +1609,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
             <section className="flex-1 flex flex-col justify-between animate-fade-in">
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setScreen('step2')} className="p-1 hover:bg-slate-100 rounded-lg text-slate-700">
+                  <button onClick={() => setScreen(ownershipRole === 'Hanya Pemilik Prasarana' ? 'step1' : 'step2')} className="p-1 hover:bg-slate-100 rounded-lg text-slate-700 cursor-pointer" title="Kembali">
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <h2 className="font-bold text-slate-900 text-base">Self-Check Gedung</h2>
