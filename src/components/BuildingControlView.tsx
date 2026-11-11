@@ -81,6 +81,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     name: string; 
     selected: boolean; 
     fileName: string | null;
+    permitNumber?: string;
     validity?: 'berlaku' | 'habis';
     damkarRkk?: boolean;
     damkarSkk?: boolean;
@@ -91,15 +92,16 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       name: 'Izin Penyelenggaraan Reklame (IPR)', 
       selected: false, 
       fileName: null, 
+      permitNumber: '',
       validity: 'berlaku', 
       reklameJenis: 'Papan / Billboard',
       reklameJenisList: ['Papan / Billboard']
     },
-    slf: { name: 'Sertifikat Laik Fungsi (SLF)', selected: false, fileName: null, validity: 'berlaku' },
-    pbg: { name: 'Persetujuan Bangunan Gedung (PBG / IMB)', selected: false, fileName: null, validity: 'berlaku' },
-    damkar: { name: 'Proteksi Kebakaran (Damkar)', selected: false, fileName: null, validity: 'berlaku', damkarRkk: false, damkarSkk: false },
-    k3: { name: 'Izin K3 Instalasi (Lift, Genset, Petir)', selected: false, fileName: null, validity: 'berlaku' },
-    env: { name: 'Persetujuan Lingkungan & Andalalin', selected: false, fileName: null, validity: 'berlaku' }
+    slf: { name: 'Sertifikat Laik Fungsi (SLF)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' },
+    pbg: { name: 'Persetujuan Bangunan Gedung (PBG / IMB)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' },
+    damkar: { name: 'Proteksi Kebakaran (Damkar)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku', damkarRkk: false, damkarSkk: false },
+    k3: { name: 'Izin K3 Instalasi (Lift, Genset, Petir)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' },
+    env: { name: 'Persetujuan Lingkungan & Andalalin', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' }
   });
 
   // Step 3: Checkbox Persyaratan Teknis yang sudah siap ('ada' | 'tidak_ada')
@@ -437,6 +439,31 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     }));
   };
 
+  // Handle setting permit number (Nomor Izin / SK)
+  const handleSetPermitNumber = (key: string, permitNumber: string) => {
+    setPermitStates(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        permitNumber,
+        selected: permitNumber.trim().length > 0 ? true : prev[key]?.selected
+      }
+    }));
+  };
+
+  // Helper placeholder for permit numbers
+  const getPermitPlaceholder = (key: string): string => {
+    switch (key) {
+      case 'slf': return 'Contoh: 1/C.37b/31.74/-1.785.51/2023 atau SK-SLF-3174-XXXX';
+      case 'pbg': return 'Contoh: SK-PBG-317401-12052022-001 atau No. 1234/IMB/JS/2019';
+      case 'damkar': return 'Contoh: 551.2/SKK-DAMKAR/JS/2023 atau Rekom RKK-089/2023';
+      case 'k3': return 'Contoh: KEP.45/DISNAKER-DKI/K3-LIFT/2023 atau K3-GENSET-012/2024';
+      case 'env': return 'Contoh: SK.AMDAL-660.1/JS/2022 atau Rekom-Andalalin/890/2023';
+      case 'reklame': return 'Contoh: IPR/2024/0981/PTSP-JS atau SKPD Reklame 12345/2024';
+      default: return 'Nomor surat keputusan / sertifikat izin...';
+    }
+  };
+
   // Handle toggling Damkar sub-documents (RKK & SKK)
   const handleToggleDamkarDoc = (subDoc: 'damkarRkk' | 'damkarSkk') => {
     setPermitStates(prev => {
@@ -565,13 +592,14 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       ownedPermits: Object.keys(permitStates).filter(k => permitStates[k].selected).map(k => {
         const p = permitStates[k];
         const valText = p.validity === 'habis' ? ' (Habis Masa Berlaku)' : ' (Masih Berlaku)';
+        const numText = p.permitNumber?.trim() ? ` [No: ${p.permitNumber.trim()}]` : '';
         const damkarExtra = k === 'damkar' && (p.damkarRkk || p.damkarSkk)
           ? ` [${[p.damkarRkk && 'RKK', p.damkarSkk && 'SKK'].filter(Boolean).join(', ')}]`
           : '';
         const reklameExtra = k === 'reklame' && p.reklameJenis
           ? ` [Jenis: ${p.reklameJenis}]`
           : '';
-        return `${p.name}${valText}${damkarExtra}${reklameExtra}`;
+        return `${p.name}${numText}${valText}${damkarExtra}${reklameExtra}`;
       }),
       uploadedFiles: Object.keys(permitStates).reduce((acc, k) => {
         if (permitStates[k].fileName) acc[k] = permitStates[k].fileName!;
@@ -1125,6 +1153,29 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                             })}
                           </div>
 
+                          {/* Input Nomor Izin Reklame (IPR) */}
+                          <div className="pt-2 border-t border-purple-100 flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-purple-950 flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5 text-purple-700" />
+                                <span>Nomor Izin Reklame (IPR) / SKPD:</span>
+                              </label>
+                              {permitStates.reklame.permitNumber && permitStates.reklame.permitNumber.trim() && (
+                                <span className="text-[10px] font-mono font-semibold text-purple-700 bg-purple-100 px-2 py-0.2 rounded border border-purple-200">
+                                  Tercatat
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              value={permitStates.reklame.permitNumber || ''}
+                              onChange={(e) => handleSetPermitNumber('reklame', e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              placeholder="Contoh: IPR/2024/0981/PTSP-JS atau SKPD Reklame 12345/2024"
+                              className="w-full text-xs bg-white border border-purple-200 hover:border-purple-300 rounded-xl px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition font-mono"
+                            />
+                          </div>
+
                           {/* File Upload for IPR */}
                           <div className="pt-2 border-t border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-[10px] text-purple-900">
@@ -1474,6 +1525,36 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                               }`} />
                               <span>Habis Masa Berlaku</span>
                             </button>
+                          </div>
+                        </div>
+
+                        {/* Input Nomor Izin / Sertifikat Resmi */}
+                        <div className="pt-2.5 border-t border-slate-100 flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-[#0c406d]" />
+                              <span>Nomor Izin / Sertifikat Resmi:</span>
+                            </label>
+                            {state.permitNumber && state.permitNumber.trim() ? (
+                              <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3 stroke-[3]" />
+                                <span>Nomor Tersimpan</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                Opsional jika belum hafal
+                              </span>
+                            )}
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={state.permitNumber || ''}
+                              onChange={(e) => handleSetPermitNumber(item.key, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              placeholder={getPermitPlaceholder(item.key)}
+                              className="w-full text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white rounded-xl px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0c406d]/20 focus:border-[#0c406d] transition font-mono shadow-2xs"
+                            />
                           </div>
                         </div>
 
@@ -2115,11 +2196,19 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                 const isHabis = item.state?.validity === 'habis';
                 return (
                   <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-xl bg-slate-50 border border-slate-150">
-                    <div className="flex items-center space-x-2 truncate mr-2">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
-                        !isOwned ? 'bg-slate-300' : isHabis ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`} />
-                      <span className={`truncate ${isOwned ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{item.name}</span>
+                    <div className="flex flex-col min-w-0 mr-2">
+                      <div className="flex items-center space-x-2 truncate">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${
+                          !isOwned ? 'bg-slate-300' : isHabis ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`} />
+                        <span className={`truncate ${isOwned ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{item.name}</span>
+                      </div>
+                      {isOwned && item.state?.permitNumber && item.state.permitNumber.trim() && (
+                        <div className="pl-4 mt-0.5 text-[10px] font-mono text-slate-600 truncate flex items-center gap-1">
+                          <span className="text-slate-400">No:</span>
+                          <span className="font-semibold text-[#0c406d]">{item.state.permitNumber.trim()}</span>
+                        </div>
+                      )}
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 border ${
                       !isOwned 
