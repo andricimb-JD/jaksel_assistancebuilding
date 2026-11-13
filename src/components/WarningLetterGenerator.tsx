@@ -285,7 +285,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       ['RINCIAN BUTIR PELANGGARAN & TINDAKAN WAJIB:']
     ];
 
-    const tableHeaders = ['No', 'Uraian Kewajiban / Dokumen', 'Nomor Registrasi / Kode', 'Batas Waktu / Kedaluwarsa', 'Status Sisa Hari', 'Tindakan Wajib', 'Dasar Hukum'];
+    const tableHeaders = ['No', 'Uraian Kewajiban / Dokumen', 'Nomor Registrasi / Izin', 'Batas Waktu / Kedaluwarsa', 'Status Sisa Hari', 'Tindakan Wajib', 'Dasar Hukum'];
     const tableRows = selectedItems.map((item, idx) => [
       idx + 1,
       item.itemName,
@@ -832,7 +832,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                   <tr>
                     <th className="p-2 border-r border-slate-300 w-8 text-center">No</th>
                     <th className="p-2 border-r border-slate-300">Uraian Kewajiban / Dokumen</th>
-                    <th className="p-2 border-r border-slate-300">Nomor Registrasi / Kode</th>
+                    <th className="p-2 border-r border-slate-300">Nomor Registrasi / Izin</th>
                     <th className="p-2 border-r border-slate-300 text-center">Batas Waktu</th>
                     <th className="p-2 border-r border-slate-300">Tindakan Wajib</th>
                     {isEditMode && <th className="p-2 text-center w-12 no-print">Aksi</th>}
