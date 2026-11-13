@@ -91,9 +91,10 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
     'Demikian Surat Teguran Resmi Terpadu ini disampaikan untuk menjadi perhatian serius dan dilaksanakan dengan penuh tanggung jawab demi kepatuhan hukum dan kelancaran kegiatan berusaha.'
   );
 
-  // Signatory
-  const [signatoryName] = useState<string>('Prof. Dr. Ir. Danang Supriyanto, S.H., M.H.');
-  const [signatoryTitle] = useState<string>('Kepala Divisi Audit Kepatuhan & Regulasi Perizinan');
+  // Signatory (Kepala Unit)
+  const [signatoryName, setSignatoryName] = useState<string>('( Nama Kepala Unit )');
+  const [signatoryTitle, setSignatoryTitle] = useState<string>('Kepala Unit');
+  const [signatoryNIP, setSignatoryNIP] = useState<string>('........................');
 
   // Carbon copies (Tembusan)
   const [copies, setCopies] = useState<string[]>([
@@ -978,6 +979,54 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
               )}{' '}
               terhitung sejak diterbitkannya surat peringatan ini.
             </p>
+
+            {/* TTD Kepala Unit (Di atas Peringatan Sanksi Administratif) */}
+            <div className="flex justify-end pt-4 pb-2 font-sans">
+              <div className="text-center min-w-[240px]">
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={signatoryTitle}
+                    onChange={(e) => setSignatoryTitle(e.target.value)}
+                    placeholder="Jabatan (mis. Kepala Unit)"
+                    className="w-full text-center text-xs font-bold text-slate-900 border border-dashed border-amber-400 bg-amber-50/50 rounded px-2 py-0.5 mb-12"
+                  />
+                ) : (
+                  <p className="text-xs font-bold text-slate-900 mb-14">
+                    {signatoryTitle}
+                  </p>
+                )}
+
+                <div className="border-b border-slate-900 w-52 mx-auto my-1" />
+
+                {isEditMode ? (
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={signatoryName}
+                      onChange={(e) => setSignatoryName(e.target.value)}
+                      placeholder="Nama Kepala Unit"
+                      className="w-full text-center text-xs font-bold text-slate-950 border border-dashed border-amber-400 bg-amber-50/50 rounded px-2 py-0.5"
+                    />
+                    <div className="flex items-center justify-center space-x-1">
+                      <span className="text-[10px] text-slate-600 font-mono">NIP.</span>
+                      <input
+                        type="text"
+                        value={signatoryNIP}
+                        onChange={(e) => setSignatoryNIP(e.target.value)}
+                        placeholder="NIP Kepala Unit"
+                        className="text-center text-[10px] text-slate-600 font-mono border border-dashed border-slate-300 rounded px-1.5 py-0.5 w-40"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-slate-950">{signatoryName}</p>
+                    <p className="text-[10px] text-slate-600 font-mono">NIP. {signatoryNIP}</p>
+                  </>
+                )}
+              </div>
+            </div>
 
             {/* Box Peringatan Sanksi (Editable) */}
             <div className="p-2.5 bg-rose-50 border-l-4 border-rose-600 rounded-r text-[11px] text-rose-950 my-2">
