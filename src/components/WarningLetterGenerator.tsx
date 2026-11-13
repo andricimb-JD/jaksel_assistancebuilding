@@ -579,7 +579,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
               <img
                 src="/assets/aistudio/download-removebg-preview_688696e1.png"
                 alt="Logo Pemprov DKI Jakarta"
-                className="w-16 h-16 object-contain shrink-0"
+                className="w-24 h-24 sm:w-28 sm:h-28 object-contain shrink-0"
               />
               <div className="text-center w-full max-w-xl">
                 {isEditMode ? (
