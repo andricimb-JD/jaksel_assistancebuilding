@@ -6,9 +6,7 @@ import {
   Mail, 
   CheckCircle2, 
   Edit3, 
-  ShieldAlert, 
   Building2, 
-  QrCode, 
   Save, 
   Sparkles,
   Plus,
@@ -94,9 +92,8 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   );
 
   // Signatory
-  const [signatoryName, setSignatoryName] = useState<string>('Prof. Dr. Ir. Danang Supriyanto, S.H., M.H.');
-  const [signatoryTitle, setSignatoryTitle] = useState<string>('Kepala Divisi Audit Kepatuhan & Regulasi Perizinan');
-  const [signatoryNIP, setSignatoryNIP] = useState<string>('19780512 200212 1 002');
+  const [signatoryName] = useState<string>('Prof. Dr. Ir. Danang Supriyanto, S.H., M.H.');
+  const [signatoryTitle] = useState<string>('Kepala Divisi Audit Kepatuhan & Regulasi Perizinan');
 
   // Carbon copies (Tembusan)
   const [copies, setCopies] = useState<string[]>([
@@ -579,9 +576,11 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
           {/* Letterhead (KOP SURAT RESMI INDONESIA) */}
           <div className="text-center pb-4 relative">
             <div className="flex items-center justify-center space-x-4 mb-2">
-              <div className="w-14 h-14 rounded-full border-2 border-slate-800 flex items-center justify-center p-2 shrink-0">
-                <ShieldAlert className="w-10 h-10 text-slate-900" />
-              </div>
+              <img
+                src="/assets/aistudio/download-removebg-preview_688696e1.png"
+                alt="Logo Pemprov DKI Jakarta"
+                className="w-16 h-16 object-contain shrink-0"
+              />
               <div className="text-center w-full max-w-xl">
                 {isEditMode ? (
                   <div className="space-y-1 font-sans">
@@ -1006,86 +1005,6 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             ) : (
               <p>{closingText}</p>
             )}
-          </div>
-
-          {/* Tanda Tangan & Cap Stempel Resmi */}
-          <div className="mt-8 flex justify-between items-end font-sans">
-            {/* QR Code Verification */}
-            <div className="space-y-1">
-              <div className="p-2 border border-slate-300 rounded-lg inline-block bg-slate-50">
-                <QrCode className="w-16 h-16 text-slate-900" />
-              </div>
-              <p className="text-[9px] text-slate-500 font-mono">
-                Verifikasi Integritas Dokumen Elektronik<br />
-                ID: {letterNumber.replace(/\//g, '-')}<br />
-                Status: Resmi &amp; Tersertifikasi Digital
-              </p>
-            </div>
-
-            {/* Signature & Digital Stamp */}
-            <div className="text-center relative pr-4 min-w-[240px]">
-              <p className="text-xs font-semibold text-slate-700 mb-1">
-                Atas Nama Direktur Pengawasan Kepatuhan,
-              </p>
-              
-              {isEditMode ? (
-                <input
-                  type="text"
-                  value={signatoryTitle}
-                  onChange={(e) => setSignatoryTitle(e.target.value)}
-                  className="w-full text-center text-xs font-bold text-slate-900 border border-dashed border-amber-400 bg-amber-50/50 rounded px-1 py-0.5 mb-6"
-                />
-              ) : (
-                <p className="text-xs font-bold text-slate-900 mb-8">
-                  {signatoryTitle}
-                </p>
-              )}
-
-              {/* Digital Red Stamp (Stempel Basah Digital) */}
-              <div className="absolute top-6 right-2 w-28 h-28 rounded-full border-2 border-rose-600 text-rose-600 flex flex-col items-center justify-center p-1.5 opacity-85 rotate-[-12deg] pointer-events-none">
-                <span className="text-[8px] font-black tracking-widest uppercase text-center leading-tight">
-                  REPUBLIK INDONESIA
-                </span>
-                <span className="text-[7px] font-bold text-center border-t border-b border-rose-600 py-0.5 my-0.5 uppercase tracking-wider">
-                  ★ DIREKTORAT KEPATUHAN ★
-                </span>
-                <span className="text-[7px] font-black tracking-widest text-center">
-                  AUDIT REGULASI
-                </span>
-              </div>
-
-              {/* Signature Line */}
-              <div className="relative z-10 pt-4">
-                <p className="font-serif font-black italic text-lg text-slate-900 tracking-wider">
-                  Danang Supriyanto
-                </p>
-                <div className="border-b border-slate-900 w-44 mx-auto my-1" />
-                {isEditMode ? (
-                  <div className="space-y-1">
-                    <input
-                      type="text"
-                      value={signatoryName}
-                      onChange={(e) => setSignatoryName(e.target.value)}
-                      className="w-full text-center text-xs font-bold text-slate-950 border border-dashed border-amber-400 bg-amber-50/50 rounded px-1 py-0.5"
-                    />
-                    <div className="flex items-center justify-center space-x-1">
-                      <span className="text-[10px] text-slate-600 font-mono">NIP.</span>
-                      <input
-                        type="text"
-                        value={signatoryNIP}
-                        onChange={(e) => setSignatoryNIP(e.target.value)}
-                        className="text-center text-[10px] text-slate-600 font-mono border border-dashed border-slate-300 rounded px-1 py-0.5 w-36"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xs font-bold text-slate-950">{signatoryName}</p>
-                    <p className="text-[10px] text-slate-600">NIP. {signatoryNIP}</p>
-                  </>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Tembusan (Carbon Copy - Editable) */}
