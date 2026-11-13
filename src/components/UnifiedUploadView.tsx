@@ -32,7 +32,8 @@ import {
   formatCurrencyIDR, 
   formatIndonesianDate,
   calculateDaysRemaining,
-  getPermitStatusBadge
+  getPermitStatusBadge,
+  parseSpreadsheetDate
 } from '../utils/helpers';
 
 interface UnifiedUploadViewProps {
@@ -291,10 +292,25 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
     const errors: string[] = [];
 
     rows.forEach((row, idx) => {
+      const normalizeHeader = (h: string, stripParens = false) => {
+        const cleaned = stripParens ? h.replace(/\([^)]*\)/g, '') : h;
+        return cleaned.toLowerCase().replace(/[^a-z0-9]/g, '');
+      };
+
       const getVal = (...keys: string[]) => {
         for (const k of keys) {
+          const targetExact = normalizeHeader(k, false);
           for (const rowKey of Object.keys(row)) {
-            if (rowKey.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, '')) {
+            if (normalizeHeader(rowKey, false) === targetExact) {
+              return row[rowKey];
+            }
+          }
+        }
+        for (const k of keys) {
+          const targetBase = normalizeHeader(k, true);
+          if (!targetBase) continue;
+          for (const rowKey of Object.keys(row)) {
+            if (normalizeHeader(rowKey, true) === targetBase) {
               return row[rowKey];
             }
           }
@@ -310,8 +326,37 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
       const categoryRaw = String(getVal('Kategori', 'Kategori Izin', 'Category') || '').trim();
       const documentNumber = String(getVal('Nomor Izin', 'Nomor Dokumen', 'No Izin', 'No Dokumen', 'Nomor SK') || `IZIN-${Date.now().toString().slice(-6)}-${idx}`).trim();
       const issuingAuthority = String(getVal('Instansi Penerbit', 'Penerbit', 'Instansi') || 'PTSP Pemprov DKI Jakarta').trim();
-      const issuedDate = String(getVal('Tanggal Terbit (YYYY-MM-DD)', 'Tanggal Terbit', 'Tgl Terbit', 'Issued Date') || new Date().toISOString().split('T')[0]).trim();
-      const expiryDate = String(getVal('Tanggal Kedaluwarsa (YYYY-MM-DD)', 'Tanggal Kedaluwarsa', 'Tgl Habis', 'Expiry Date', 'Masa Berlaku') || '').trim();
+      const rawIssuedDate = getVal(
+        'Tanggal Terbit (YYYY-MM-DD)',
+        'Tanggal Terbit',
+        'Tgl Terbit',
+        'Tanggal Diterbitkan',
+        'Tanggal Berlaku',
+        'Mulai Berlaku',
+        'Issued Date'
+      );
+      const rawExpiryDate = getVal(
+        'Tanggal Kedaluwarsa (YYYY-MM-DD)',
+        'Tanggal Kedaluwarsa',
+        'Tanggal Kadaluwarsa',
+        'Tanggal Kadaluarsa',
+        'Tgl Kedaluwarsa',
+        'Tgl Kadaluwarsa',
+        'Tgl Kadaluarsa',
+        'Tgl Habis',
+        'Tanggal Habis',
+        'Tanggal Berakhir',
+        'Tgl Berakhir',
+        'Berlaku Sampai',
+        'Berlaku Hingga',
+        'Expiry Date',
+        'Expired Date',
+        'Masa Berlaku'
+      );
+      const issuedDateRawStr = String(rawIssuedDate ?? '').trim();
+      const expiryDateRawStr = String(rawExpiryDate ?? '').trim();
+      const issuedDate = parseSpreadsheetDate(rawIssuedDate);
+      const expiryDate = parseSpreadsheetDate(rawExpiryDate);
       const picName = String(getVal('Nama Penangung Jawab', 'Nama Penanggung Jawab', 'Nama PIC', 'PIC', 'Penanggung Jawab') || 'Andri Wicaksono').trim();
       const picEmail = String(getVal('Email', 'Email PIC', 'Surel') || 'andri.cimb@gmail.com').trim();
       const notes = String(getVal('Catatan Teknis', 'Catatan', 'Notes') || '').trim();
@@ -324,9 +369,16 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
         errors.push(`Baris ${idx + 1}: Nama Perizinan kosong`);
         return;
       }
-      if (!expiryDate) {
+      if (!expiryDateRawStr || expiryDateRawStr === '-') {
         errors.push(`Baris ${idx + 1}: Tanggal Kedaluwarsa kosong`);
         return;
+      }
+      if (!expiryDate) {
+        errors.push(`Baris ${idx + 1}: Tanggal Kedaluwarsa "${expiryDateRawStr}" tidak terbaca sebagai format tanggal yang valid`);
+        return;
+      }
+      if (issuedDateRawStr && issuedDateRawStr !== '-' && !issuedDate) {
+        errors.push(`Baris ${idx + 1}: Format Tanggal Terbit "${issuedDateRawStr}" tidak terbaca sebagai tanggal yang valid`);
       }
 
       const matchedCompany = companies.find(
@@ -382,14 +434,26 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
     setIsProcessingPermit(true);
     setPermitFileName(file.name);
 
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        let workbook: XLSX.WorkBook;
+        if (isCsv && typeof data === 'string') {
+          const firstLine = data.split(/\r?\n/).find((l) => l.trim().length > 0) || '';
+          const semicolonCount = (firstLine.match(/;/g) || []).length;
+          const commaCount = (firstLine.match(/,/g) || []).length;
+          workbook = XLSX.read(data, {
+            type: 'string',
+            ...(semicolonCount > commaCount ? { FS: ';' } : {})
+          });
+        } else {
+          workbook = XLSX.read(data, { type: 'array' });
+        }
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet);
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         processRawPermitRows(json);
       } catch (err: any) {
         setPermitErrorMessages([`Gagal memproses file perizinan: ${err.message || 'Format tidak valid'}`]);
@@ -397,16 +461,27 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
         setIsProcessingPermit(false);
       }
     };
-    reader.readAsBinaryString(file);
+    if (isCsv) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const handlePermitPasteProcess = () => {
     if (!permitPasteText.trim()) return;
     try {
-      const workbook = XLSX.read(permitPasteText, { type: 'string' });
+      const firstLine = permitPasteText.split(/\r?\n/).find((l) => l.trim().length > 0) || '';
+      const semicolonCount = (firstLine.match(/;/g) || []).length;
+      const commaCount = (firstLine.match(/,/g) || []).length;
+      const tabCount = (firstLine.match(/\t/g) || []).length;
+      const workbook = XLSX.read(permitPasteText, {
+        type: 'string',
+        ...(tabCount === 0 && semicolonCount > commaCount ? { FS: ';' } : {})
+      });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json(sheet);
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
       processRawPermitRows(json);
       setPermitFileName('Manual_CSV_Paste_Perizinan.csv');
     } catch (err: any) {
@@ -878,8 +953,18 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
                         <td className="py-2 px-3 text-slate-900 font-medium">{item.permitName}</td>
                         <td className="py-2 px-3 text-slate-600 font-medium">{item.usage || item.category || '-'}</td>
                         <td className="py-2 px-3 font-mono text-[11px] text-slate-500">{item.documentNumber}</td>
-                        <td className="py-2 px-3 font-mono text-[11px] text-slate-500">{item.issuedDate || '-'}</td>
-                        <td className="py-2 px-3 font-bold text-slate-800">{item.expiryDate}</td>
+                        <td
+                          className="py-2 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap"
+                          title={item.issuedDate ? formatIndonesianDate(item.issuedDate) : 'Tanggal terbit tidak diisi'}
+                        >
+                          {item.issuedDate || '-'}
+                        </td>
+                        <td
+                          className="py-2 px-3 font-mono text-[11px] font-bold text-slate-800 whitespace-nowrap"
+                          title={formatIndonesianDate(item.expiryDate)}
+                        >
+                          {item.expiryDate}
+                        </td>
                         <td className="py-2 px-3 text-slate-700">{item.picName || '-'}</td>
                         <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{item.picEmail}</td>
                         <td className="py-2 px-3 text-slate-500 max-w-[180px] truncate" title={item.notes || '-'}>{item.notes || '-'}</td>

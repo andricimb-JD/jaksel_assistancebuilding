@@ -1,9 +1,171 @@
+import * as XLSX from 'xlsx';
 import { Permit, PermitStatus, LKPMRecord, WarningLetter, Company, NIBComparisonEntity, ComparisonStatus } from '../types';
+
+const INDONESIAN_ENGLISH_MONTHS: Record<string, number> = {
+  jan: 1, januari: 1, january: 1,
+  feb: 2, peb: 2, februari: 2, pebruari: 2, february: 2,
+  mar: 3, mrt: 3, maret: 3, march: 3,
+  apr: 4, april: 4,
+  mei: 5, may: 5,
+  jun: 6, juni: 6, june: 6,
+  jul: 7, juli: 7, july: 7,
+  agu: 8, agt: 8, aug: 8, agustus: 8, august: 8,
+  sep: 9, sept: 9, september: 9,
+  okt: 10, oct: 10, oktober: 10, october: 10,
+  nov: 11, nop: 11, november: 11, nopember: 11,
+  des: 12, dec: 12, desember: 12, december: 12
+};
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+const formatYmdIfValid = (year: number, month: number, day: number): string => {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return '';
+  if (year < 1900 || year > 2200 || month < 1 || month > 12 || day < 1 || day > 31) return '';
+  const check = new Date(year, month - 1, day);
+  if (
+    check.getFullYear() !== year ||
+    check.getMonth() !== month - 1 ||
+    check.getDate() !== day
+  ) {
+    return '';
+  }
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+};
+
+export const parseSpreadsheetDate = (rawValue: unknown): string => {
+  if (rawValue === null || rawValue === undefined || rawValue === '') return '';
+
+  if (rawValue instanceof Date) {
+    if (isNaN(rawValue.getTime())) return '';
+    return formatYmdIfValid(rawValue.getFullYear(), rawValue.getMonth() + 1, rawValue.getDate());
+  }
+
+  if (typeof rawValue === 'number') {
+    if (!Number.isFinite(rawValue) || rawValue <= 0) return '';
+    const intVal = Math.trunc(rawValue);
+    const ymdNumMatch = String(intVal).match(/^(19|20)(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/);
+    if (ymdNumMatch) {
+      return formatYmdIfValid(
+        Number(`${ymdNumMatch[1]}${ymdNumMatch[2]}`),
+        Number(ymdNumMatch[3]),
+        Number(ymdNumMatch[4])
+      );
+    }
+    if (rawValue < 2958465) {
+      const parsed = XLSX.SSF.parse_date_code(rawValue);
+      if (parsed) {
+        return formatYmdIfValid(parsed.y, parsed.m, parsed.d);
+      }
+    }
+    return '';
+  }
+
+  const str = String(rawValue).trim().replace(/^'+/, '').trim();
+  if (!str || str === '-') return '';
+
+  // Excel serial number stored as string (e.g. "45235" or "46331.5")
+  if (/^\d{4,6}(\.\d+)?$/.test(str)) {
+    const num = Number(str);
+    if (num >= 1000 && num < 2958465) {
+      const parsed = XLSX.SSF.parse_date_code(num);
+      if (parsed) {
+        const formatted = formatYmdIfValid(parsed.y, parsed.m, parsed.d);
+        if (formatted) return formatted;
+      }
+    }
+  }
+
+  // Compact YYYYMMDD (e.g. "20261105")
+  const compactMatch = str.match(/^(19|20)(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/);
+  if (compactMatch) {
+    return formatYmdIfValid(
+      Number(`${compactMatch[1]}${compactMatch[2]}`),
+      Number(compactMatch[3]),
+      Number(compactMatch[4])
+    );
+  }
+
+  // ISO or YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD (with optional timestamp)
+  const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s].*)?$/);
+  if (ymdMatch) {
+    return formatYmdIfValid(Number(ymdMatch[1]), Number(ymdMatch[2]), Number(ymdMatch[3]));
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY (with optional timestamp)
+  const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:[T\s].*)?$/);
+  if (dmyMatch) {
+    const p1 = Number(dmyMatch[1]);
+    const p2 = Number(dmyMatch[2]);
+    const year = Number(dmyMatch[3]);
+    const month = p2 > 12 && p1 <= 12 ? p1 : p2;
+    const day = p2 > 12 && p1 <= 12 ? p2 : p1;
+    return formatYmdIfValid(year, month, day);
+  }
+
+  // DD/MM/YY or DD-MM-YY or DD.MM.YY
+  const dmyShortMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})(?:\s.*)?$/);
+  if (dmyShortMatch) {
+    const p1 = Number(dmyShortMatch[1]);
+    const p2 = Number(dmyShortMatch[2]);
+    const yy = Number(dmyShortMatch[3]);
+    const year = yy >= 70 ? 1900 + yy : 2000 + yy;
+    const month = p2 > 12 && p1 <= 12 ? p1 : p2;
+    const day = p2 > 12 && p1 <= 12 ? p2 : p1;
+    return formatYmdIfValid(year, month, day);
+  }
+
+  // DD MMM YYYY or DD-MMM-YYYY (Indonesian / English months)
+  const textMonthDmy = str.match(/^(\d{1,2})[\s\-/.]+([a-zA-Z]+)[\s\-/.,]+(\d{2,4})(?:\s.*)?$/);
+  if (textMonthDmy) {
+    const day = Number(textMonthDmy[1]);
+    const monthNum = INDONESIAN_ENGLISH_MONTHS[textMonthDmy[2].toLowerCase()];
+    const rawYear = Number(textMonthDmy[3]);
+    const year = textMonthDmy[3].length === 2 ? (rawYear >= 70 ? 1900 + rawYear : 2000 + rawYear) : rawYear;
+    if (monthNum) {
+      return formatYmdIfValid(year, monthNum, day);
+    }
+  }
+
+  // MMM DD, YYYY (e.g. "Nov 5, 2023")
+  const textMonthMdy = str.match(/^([a-zA-Z]+)[\s\-/.]+(\d{1,2})[,\s\-/.]+(\d{2,4})(?:\s.*)?$/);
+  if (textMonthMdy) {
+    const monthNum = INDONESIAN_ENGLISH_MONTHS[textMonthMdy[1].toLowerCase()];
+    const day = Number(textMonthMdy[2]);
+    const rawYear = Number(textMonthMdy[3]);
+    const year = textMonthMdy[3].length === 2 ? (rawYear >= 70 ? 1900 + rawYear : 2000 + rawYear) : rawYear;
+    if (monthNum) {
+      return formatYmdIfValid(year, monthNum, day);
+    }
+  }
+
+  const parsedFallback = new Date(str);
+  if (!isNaN(parsedFallback.getTime())) {
+    return formatYmdIfValid(
+      parsedFallback.getFullYear(),
+      parsedFallback.getMonth() + 1,
+      parsedFallback.getDate()
+    );
+  }
+
+  return '';
+};
+
+const parseIsoLocalDate = (dateString?: string): Date | null => {
+  if (!dateString) return null;
+  const normalized = parseSpreadsheetDate(dateString) || dateString;
+  const m = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  const d = new Date(dateString);
+  return isNaN(d.getTime()) ? null : d;
+};
 
 export const calculateDaysRemaining = (expiryDateStr: string): number => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDateStr);
+  const expiry = parseIsoLocalDate(expiryDateStr);
+  if (!expiry) return NaN;
   expiry.setHours(0, 0, 0, 0);
   const diffTime = expiry.getTime() - today.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -60,8 +222,8 @@ export const getPermitStatusBadge = (status: PermitStatus, daysRemaining: number
 
 export const formatIndonesianDate = (dateString?: string): string => {
   if (!dateString) return '-';
-  const d = new Date(dateString);
-  if (isNaN(d.getTime())) return dateString;
+  const d = parseIsoLocalDate(dateString);
+  if (!d) return dateString;
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
     month: 'long',
