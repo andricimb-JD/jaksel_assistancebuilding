@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Permit, PermitCategory, Company } from '../types';
-import { generateSampleCsvPermits, formatCurrencyIDR } from '../utils/helpers';
+import { generateSampleCsvPermits, formatCurrencyIDR, parseSpreadsheetDate } from '../utils/helpers';
 
 interface BulkUploadPermitsModalProps {
   isOpen: boolean;
@@ -167,10 +167,25 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
     const errors: string[] = [];
 
     rows.forEach((row, idx) => {
+      const normalizeHeader = (h: string, stripParens = false) => {
+        const cleaned = stripParens ? h.replace(/\([^)]*\)/g, '') : h;
+        return cleaned.toLowerCase().replace(/[^a-z0-9]/g, '');
+      };
+
       const getVal = (...keys: string[]) => {
         for (const k of keys) {
+          const targetExact = normalizeHeader(k, false);
           for (const rowKey of Object.keys(row)) {
-            if (rowKey.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, '')) {
+            if (normalizeHeader(rowKey, false) === targetExact) {
+              return row[rowKey];
+            }
+          }
+        }
+        for (const k of keys) {
+          const targetBase = normalizeHeader(k, true);
+          if (!targetBase) continue;
+          for (const rowKey of Object.keys(row)) {
+            if (normalizeHeader(rowKey, true) === targetBase) {
               return row[rowKey];
             }
           }
@@ -185,8 +200,32 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
       const categoryRaw = String(getVal('Kategori', 'Sektor', 'Jenis Izin') || '').trim();
       const documentNumber = String(getVal('Nomor Izin', 'Nomor Dokumen', 'No Dokumen', 'No Izin', 'No Registrasi', 'SK') || `IZIN-${Date.now().toString().slice(-6)}-${idx}`).trim();
       const issuingAuthority = String(getVal('Instansi Penerbit', 'Penerbit', 'Instansi', 'Kementerian') || 'PTSP Pemprov DKI Jakarta').trim();
-      const issuedDate = String(getVal('Tanggal Terbit (YYYY-MM-DD)', 'Tanggal Terbit', 'Tgl Terbit', 'Diterbitkan') || new Date().toISOString().split('T')[0]).trim();
-      const expiryDate = String(getVal('Tanggal Kedaluwarsa (YYYY-MM-DD)', 'Tanggal Kedaluwarsa', 'Tgl Kedaluwarsa', 'Tanggal Berakhir', 'Expiry') || '').trim();
+      const rawIssuedDate = getVal(
+        'Tanggal Terbit (YYYY-MM-DD)',
+        'Tanggal Terbit',
+        'Tgl Terbit',
+        'Diterbitkan',
+        'Tanggal Berlaku',
+        'Issued Date'
+      );
+      const rawExpiryDate = getVal(
+        'Tanggal Kedaluwarsa (YYYY-MM-DD)',
+        'Tanggal Kedaluwarsa',
+        'Tanggal Kadaluwarsa',
+        'Tanggal Kadaluarsa',
+        'Tgl Kedaluwarsa',
+        'Tgl Kadaluwarsa',
+        'Tanggal Berakhir',
+        'Tgl Berakhir',
+        'Tgl Habis',
+        'Berlaku Sampai',
+        'Expiry Date',
+        'Expiry'
+      );
+      const issuedDateRawStr = String(rawIssuedDate ?? '').trim();
+      const expiryDateRawStr = String(rawExpiryDate ?? '').trim();
+      const issuedDate = parseSpreadsheetDate(rawIssuedDate);
+      const expiryDate = parseSpreadsheetDate(rawExpiryDate);
       const picName = String(getVal('Nama Penangung Jawab', 'Nama Penanggung Jawab', 'Nama PIC', 'PIC', 'Penanggung Jawab') || 'Andri Wicaksono').trim();
       const picEmail = String(getVal('Email', 'Email PIC', 'Surel') || 'andri.cimb@gmail.com').trim();
       const notes = String(getVal('Catatan Teknis', 'Catatan', 'Notes') || '').trim();
@@ -195,9 +234,16 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
         errors.push(`Baris ${idx + 1}: Nama Perizinan kosong`);
         return;
       }
-      if (!expiryDate) {
+      if (!expiryDateRawStr || expiryDateRawStr === '-') {
         errors.push(`Baris ${idx + 1}: Tanggal Kedaluwarsa kosong untuk "${permitName}"`);
         return;
+      }
+      if (!expiryDate) {
+        errors.push(`Baris ${idx + 1}: Tanggal Kedaluwarsa "${expiryDateRawStr}" tidak terbaca untuk "${permitName}"`);
+        return;
+      }
+      if (issuedDateRawStr && issuedDateRawStr !== '-' && !issuedDate) {
+        errors.push(`Baris ${idx + 1}: Format Tanggal Terbit "${issuedDateRawStr}" tidak valid`);
       }
 
       // Match or assign company
@@ -213,7 +259,7 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
         usage: usage || undefined,
         documentNumber,
         issuingAuthority,
-        issuedDate: issuedDate || new Date().toISOString().split('T')[0],
+        issuedDate,
         expiryDate,
         picName,
         picEmail,
@@ -231,14 +277,26 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
     setIsProcessing(true);
     setFileName(file.name);
 
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        let workbook: XLSX.WorkBook;
+        if (isCsv && typeof data === 'string') {
+          const firstLine = data.split(/\r?\n/).find((l) => l.trim().length > 0) || '';
+          const semicolonCount = (firstLine.match(/;/g) || []).length;
+          const commaCount = (firstLine.match(/,/g) || []).length;
+          workbook = XLSX.read(data, {
+            type: 'string',
+            ...(semicolonCount > commaCount ? { FS: ';' } : {})
+          });
+        } else {
+          workbook = XLSX.read(data, { type: 'array' });
+        }
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet);
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
         processRawData(json);
       } catch (err: any) {
@@ -248,7 +306,11 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
       }
     };
 
-    reader.readAsBinaryString(file);
+    if (isCsv) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
