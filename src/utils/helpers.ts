@@ -286,24 +286,24 @@ export const calculateFollowUpMetrics = (permits: Permit[], lkpmRecords: LKPMRec
 export const generateSampleCsvPermits = (): string => {
   const headers = [
     'Nama Perusahaan',
+    'Alamat',
     'Nama Perizinan',
-    'Kategori',
-    'Nomor Dokumen',
-    'Instansi Penerbit',
+    'Pengunaan',
+    'Nomor Izin',
     'Tanggal Terbit (YYYY-MM-DD)',
     'Tanggal Kedaluwarsa (YYYY-MM-DD)',
-    'Nama PIC',
-    'Email PIC',
+    'Nama Penangung Jawab',
+    'Email',
     'Catatan Teknis'
   ];
 
   const sampleRows = [
     [
       'PT Nusantara Petrokimia Raya',
+      'Jl. Gatot Subroto Kav. 42, Jakarta Selatan',
       'Izin Lingkungan Hidup (Persetujuan Lingkungan / AMDAL)',
-      'Lingkungan Hidup',
+      'Pabrik Industri Kimia & Gudang Bahan Baku',
       'SK.520/MENLHK/SETJEN/PLA.4/2021',
-      'Kementerian Lingkungan Hidup dan Kehutanan RI',
       '2023-11-05',
       '2026-11-05',
       'Andri Wicaksono',
@@ -312,10 +312,10 @@ export const generateSampleCsvPermits = (): string => {
     ],
     [
       'PT Cipta Pangan Lestari',
+      'Jl. TB Simatupang No. 18, Pasar Minggu, Jakarta Selatan',
       'Sertifikat Halal BPJPH (Bahan Baku & Lini Produksi)',
-      'Kesehatan & Pangan',
+      'Fasilitas Pengolahan Makanan & Minuman Kemasan',
       'ID00410000189420921',
-      'BPJPH Kementerian Agama RI',
       '2022-11-15',
       '2026-11-15',
       'Hendra Gunawan',
@@ -324,10 +324,10 @@ export const generateSampleCsvPermits = (): string => {
     ],
     [
       'PT Indo Prima Manufaktur Tbk',
+      'Jl. HR Rasuna Said Blok X-5, Setiabudi, Jakarta Selatan',
       'Sertifikat Laik Fungsi (SLF) Gedung Pabrik & Gudang A',
-      'Bangunan & Konstruksi',
-      '640/SLF-DPMPTSP/BKS/2021',
-      'Dinas Penanaman Modal & PTSP Kab. Bekasi',
+      'Gedung Pabrik Manufaktur & Logistik Modern',
+      '640/SLF-DPMPTSP/JS/2021',
       '2021-10-15',
       '2026-10-15',
       'Budi Santoso',
@@ -335,11 +335,23 @@ export const generateSampleCsvPermits = (): string => {
       'Dokumen perpanjangan SLF struktur baja'
     ],
     [
+      'PT Media Citra Megatron',
+      'Jl. Jenderal Sudirman Kav. 52-53, Kebayoran Baru, Jakarta Selatan',
+      'Izin Penyelenggaraan Reklame (IPR JakEVO)',
+      'Megatron / Videotron LED Fasad Gedung',
+      'IPR-PTSP-JS/2023/8891',
+      '2023-08-20',
+      '2026-08-20',
+      'Ahmad Fauzi',
+      'reklame@mediacitra.id',
+      'Struktur reklame ber-IPTB dan bukti SKPD/SSPD Bapenda DKI'
+    ],
+    [
       'CV Berkah Energi Mandiri',
+      'Jl. Kemang Raya No. 101, Mampang Prapatan, Jakarta Selatan',
       'Surat Izin Laik Operasi (SLO) Genset Pembangkit Darurat 500 kVA',
-      'Operasional & Teknis',
+      'Sistem Kelistrikan Cadangan Gedung Bertingkat',
       'SLO-DJE/ESDM/2024/771',
-      'Direktorat Jenderal Ketenagalistrikan ESDM',
       '2024-12-20',
       '2026-12-20',
       'Rahmat Hidayat',

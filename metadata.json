@@ -1,8 +1,6 @@
 {
-  "name": "Remix KepatuhanPlus - Monitoring Perizinan \u0026 LKPM",
+  "name": "KepatuhanPlus - Monitoring Perizinan & LKPM",
   "description": "Platform pengingat masa berlaku perizinan, sertifikat usaha, pelacakan kepatuhan LKPM terintegrasi dengan bulk upload, notifikasi email, dan generator surat teguran resmi.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

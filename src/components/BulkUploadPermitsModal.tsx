@@ -59,22 +59,22 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
     const ws_data = [
       [
         'Nama Perusahaan',
+        'Alamat',
         'Nama Perizinan',
-        'Kategori',
-        'Nomor Dokumen',
-        'Instansi Penerbit',
+        'Pengunaan',
+        'Nomor Izin',
         'Tanggal Terbit (YYYY-MM-DD)',
         'Tanggal Kedaluwarsa (YYYY-MM-DD)',
-        'Nama PIC',
-        'Email PIC',
+        'Nama Penangung Jawab',
+        'Email',
         'Catatan Teknis'
       ],
       [
         'PT Nusantara Petrokimia Raya',
+        'Jl. Gatot Subroto Kav. 42, Jakarta Selatan',
         'Izin Lingkungan Hidup (Persetujuan Lingkungan / AMDAL)',
-        'Lingkungan Hidup',
+        'Pabrik Industri Kimia & Gudang Bahan Baku',
         'SK.520/MENLHK/SETJEN/PLA.4/2021',
-        'Kementerian Lingkungan Hidup dan Kehutanan RI',
         '2023-11-05',
         '2026-11-05',
         'Andri Wicaksono',
@@ -83,10 +83,10 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
       ],
       [
         'PT Cipta Pangan Lestari',
+        'Jl. TB Simatupang No. 18, Pasar Minggu, Jakarta Selatan',
         'Sertifikat Halal BPJPH (Bahan Baku & Lini Produksi)',
-        'Kesehatan & Pangan',
+        'Fasilitas Pengolahan Makanan & Minuman Kemasan',
         'ID00410000189420921',
-        'BPJPH Kementerian Agama RI',
         '2022-11-15',
         '2026-11-15',
         'Hendra Gunawan',
@@ -95,10 +95,10 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
       ],
       [
         'PT Indo Prima Manufaktur Tbk',
+        'Jl. HR Rasuna Said Blok X-5, Setiabudi, Jakarta Selatan',
         'Sertifikat Laik Fungsi (SLF) Gedung Pabrik & Gudang A',
-        'Bangunan & Konstruksi',
-        '640/SLF-DPMPTSP/BKS/2021',
-        'Dinas Penanaman Modal & PTSP Kab. Bekasi',
+        'Gedung Pabrik Manufaktur & Logistik Modern',
+        '640/SLF-DPMPTSP/JS/2021',
         '2021-10-15',
         '2026-10-15',
         'Budi Santoso',
@@ -106,11 +106,23 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
         'Dokumen perpanjangan SLF struktur baja'
       ],
       [
+        'PT Media Citra Megatron',
+        'Jl. Jenderal Sudirman Kav. 52-53, Kebayoran Baru, Jakarta Selatan',
+        'Izin Penyelenggaraan Reklame (IPR JakEVO)',
+        'Megatron / Videotron LED Fasad Gedung',
+        'IPR-PTSP-JS/2023/8891',
+        '2023-08-20',
+        '2026-08-20',
+        'Ahmad Fauzi',
+        'reklame@mediacitra.id',
+        'Struktur reklame ber-IPTB dan bukti SKPD/SSPD Bapenda DKI'
+      ],
+      [
         'CV Berkah Energi Mandiri',
+        'Jl. Kemang Raya No. 101, Mampang Prapatan, Jakarta Selatan',
         'Surat Izin Laik Operasi (SLO) Genset Pembangkit Darurat 500 kVA',
-        'Operasional & Teknis',
+        'Sistem Kelistrikan Cadangan Gedung Bertingkat',
         'SLO-DJE/ESDM/2024/771',
-        'Direktorat Jenderal Ketenagalistrikan ESDM',
         '2024-12-20',
         '2026-12-20',
         'Rahmat Hidayat',
@@ -120,6 +132,18 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [
+      { wch: 28 },
+      { wch: 42 },
+      { wch: 44 },
+      { wch: 36 },
+      { wch: 28 },
+      { wch: 26 },
+      { wch: 30 },
+      { wch: 24 },
+      { wch: 26 },
+      { wch: 42 }
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template Perizinan Usaha');
     XLSX.writeFile(wb, `Template_Upload_Perizinan_Sertifikat.xlsx`);
@@ -128,6 +152,7 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
   // Normalize Category string
   const normalizeCategory = (catStr: string): PermitCategory => {
     const s = catStr.toLowerCase();
+    if (s.includes('reklame') || s.includes('billboard') || s.includes('videotron') || s.includes('neon box') || s.includes('ipr')) return 'Penyelenggaraan Reklame';
     if (s.includes('lingkungan') || s.includes('amdal') || s.includes('sppl') || s.includes('ukl')) return 'Lingkungan Hidup';
     if (s.includes('bangunan') || s.includes('slf') || s.includes('pbg') || s.includes('imb')) return 'Bangunan & Konstruksi';
     if (s.includes('halal') || s.includes('pangan') || s.includes('bpom') || s.includes('kesehatan') || s.includes('obat')) return 'Kesehatan & Pangan';
@@ -154,14 +179,16 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
       };
 
       const companyName = String(getVal('Nama Perusahaan', 'Perusahaan', 'NamaPT', 'Nama') || '').trim();
-      const permitName = String(getVal('Nama Perizinan', 'Perizinan', 'Nama Sertifikat', 'Dokumen') || '').trim();
-      const categoryRaw = String(getVal('Kategori', 'Sektor', 'Jenis Izin') || 'Legalitas Dasar').trim();
-      const documentNumber = String(getVal('Nomor Dokumen', 'No Dokumen', 'No Registrasi', 'SK') || `REG-${Date.now().toString().slice(-6)}-${idx}`).trim();
-      const issuingAuthority = String(getVal('Instansi Penerbit', 'Penerbit', 'Instansi', 'Kementerian') || 'Kementerian Investasi / BKPM').trim();
-      const issuedDate = String(getVal('Tanggal Terbit', 'Tgl Terbit', 'Diterbitkan') || new Date().toISOString().split('T')[0]).trim();
-      const expiryDate = String(getVal('Tanggal Kedaluwarsa', 'Tgl Kedaluwarsa', 'Tanggal Berakhir', 'Expiry') || '').trim();
-      const picName = String(getVal('Nama PIC', 'PIC', 'Penanggung Jawab') || 'Andri Wicaksono').trim();
-      const picEmail = String(getVal('Email PIC', 'Email', 'Surel') || 'andri.cimb@gmail.com').trim();
+      const address = String(getVal('Alamat', 'Alamat Perusahaan', 'Alamat Gedung', 'Lokasi', 'Address') || '').trim();
+      const permitName = String(getVal('Nama Perizinan', 'Perizinan', 'Nama Sertifikat', 'Dokumen', 'Izin') || '').trim();
+      const usage = String(getVal('Pengunaan', 'Penggunaan', 'Peruntukan', 'Fungsi') || '').trim();
+      const categoryRaw = String(getVal('Kategori', 'Sektor', 'Jenis Izin') || '').trim();
+      const documentNumber = String(getVal('Nomor Izin', 'Nomor Dokumen', 'No Dokumen', 'No Izin', 'No Registrasi', 'SK') || `IZIN-${Date.now().toString().slice(-6)}-${idx}`).trim();
+      const issuingAuthority = String(getVal('Instansi Penerbit', 'Penerbit', 'Instansi', 'Kementerian') || 'PTSP Pemprov DKI Jakarta').trim();
+      const issuedDate = String(getVal('Tanggal Terbit (YYYY-MM-DD)', 'Tanggal Terbit', 'Tgl Terbit', 'Diterbitkan') || new Date().toISOString().split('T')[0]).trim();
+      const expiryDate = String(getVal('Tanggal Kedaluwarsa (YYYY-MM-DD)', 'Tanggal Kedaluwarsa', 'Tgl Kedaluwarsa', 'Tanggal Berakhir', 'Expiry') || '').trim();
+      const picName = String(getVal('Nama Penangung Jawab', 'Nama Penanggung Jawab', 'Nama PIC', 'PIC', 'Penanggung Jawab') || 'Andri Wicaksono').trim();
+      const picEmail = String(getVal('Email', 'Email PIC', 'Surel') || 'andri.cimb@gmail.com').trim();
       const notes = String(getVal('Catatan Teknis', 'Catatan', 'Notes') || '').trim();
 
       if (!permitName) {
@@ -180,8 +207,10 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
         id: `prm-bulk-${Date.now().toString().slice(-6)}-${idx}`,
         companyId: matchedComp ? matchedComp.id : 'comp-1',
         companyName: companyName || (matchedComp ? matchedComp.name : 'PT Nusantara Petrokimia Raya'),
+        address: address || undefined,
         permitName,
-        category: normalizeCategory(categoryRaw),
+        category: normalizeCategory(categoryRaw || usage || permitName),
+        usage: usage || undefined,
         documentNumber,
         issuingAuthority,
         issuedDate: issuedDate || new Date().toISOString().split('T')[0],
@@ -402,7 +431,7 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
                 rows={5}
                 value={pasteCsvText}
                 onChange={(e) => setPasteCsvText(e.target.value)}
-                placeholder={`Nama Perusahaan,Nama Perizinan,Kategori,Nomor Dokumen,Instansi Penerbit,Tanggal Terbit,Tanggal Kedaluwarsa,Nama PIC,Email PIC,Catatan Teknis\nPT Nusantara Petrokimia Raya,Izin Lingkungan Hidup (AMDAL),Lingkungan Hidup,SK.520/MENLHK,Kementerian LHK,2023-11-05,2026-11-05,Andri Wicaksono,andri.cimb@gmail.com,Kajian teknis addendum`}
+                placeholder={`Nama Perusahaan,Alamat,Nama Perizinan,Pengunaan,Nomor Izin,Tanggal Terbit (YYYY-MM-DD),Tanggal Kedaluwarsa (YYYY-MM-DD),Nama Penangung Jawab,Email,Catatan Teknis\nPT Nusantara Petrokimia Raya,Jl. Gatot Subroto Kav. 42 Jakarta Selatan,Izin Lingkungan Hidup (AMDAL),Pabrik Kimia & Gudang Bahan Baku,SK.520/MENLHK/2021,2023-11-05,2026-11-05,Andri Wicaksono,andri.cimb@gmail.com,Kajian teknis addendum`}
                 className="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
               />
               <div className="flex justify-end">
@@ -451,31 +480,35 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
 
               <div className="overflow-x-auto max-h-52 border border-slate-200 rounded-lg bg-white">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0">
+                  <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 text-[11px]">
                     <tr>
                       <th className="py-2 px-2.5">No</th>
+                      <th className="py-2 px-2.5">Nama Perusahaan</th>
+                      <th className="py-2 px-2.5">Alamat</th>
                       <th className="py-2 px-2.5">Nama Perizinan</th>
-                      <th className="py-2 px-2.5">Perusahaan</th>
-                      <th className="py-2 px-2.5">Kategori</th>
-                      <th className="py-2 px-2.5">No Dokumen</th>
-                      <th className="py-2 px-2.5">Kedaluwarsa</th>
-                      <th className="py-2 px-2.5">PIC Email</th>
+                      <th className="py-2 px-2.5">Pengunaan</th>
+                      <th className="py-2 px-2.5">Nomor Izin</th>
+                      <th className="py-2 px-2.5">Tgl Terbit</th>
+                      <th className="py-2 px-2.5">Tgl Kedaluwarsa</th>
+                      <th className="py-2 px-2.5">Penangung Jawab</th>
+                      <th className="py-2 px-2.5">Email</th>
+                      <th className="py-2 px-2.5">Catatan Teknis</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {validatedData.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
                         <td className="py-1.5 px-2.5 text-slate-400 font-mono text-[10px]">{idx + 1}</td>
+                        <td className="py-1.5 px-2.5 text-slate-800 font-semibold">{item.companyName}</td>
+                        <td className="py-1.5 px-2.5 text-slate-600 max-w-[160px] truncate" title={item.address || '-'}>{item.address || '-'}</td>
                         <td className="py-1.5 px-2.5 font-bold text-slate-900">{item.permitName}</td>
-                        <td className="py-1.5 px-2.5 text-slate-700">{item.companyName}</td>
-                        <td className="py-1.5 px-2.5">
-                          <span className="px-1.5 py-0.2 rounded bg-slate-100 text-[10px] font-medium text-slate-700">
-                            {item.category}
-                          </span>
-                        </td>
+                        <td className="py-1.5 px-2.5 text-slate-600 font-medium">{item.usage || item.category || '-'}</td>
                         <td className="py-1.5 px-2.5 font-mono text-[10px] text-slate-500">{item.documentNumber}</td>
+                        <td className="py-1.5 px-2.5 font-mono text-[10px] text-slate-500">{item.issuedDate || '-'}</td>
                         <td className="py-1.5 px-2.5 font-bold text-rose-700">{item.expiryDate}</td>
+                        <td className="py-1.5 px-2.5 text-slate-700">{item.picName || '-'}</td>
                         <td className="py-1.5 px-2.5 font-mono text-[10px] text-slate-500">{item.picEmail}</td>
+                        <td className="py-1.5 px-2.5 text-slate-500 max-w-[150px] truncate" title={item.notes || '-'}>{item.notes || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

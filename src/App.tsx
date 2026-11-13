@@ -49,13 +49,18 @@ export default function App() {
     return localStorage.getItem('kp_isAuthenticated') === 'true';
   });
 
-  // Users List with Persistence
+  // Users List with Persistence - Clean legacy sample users
   const [users, setUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem('kp_users_list');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Remove old sample users except superadmin and newly registered users
+          const sampleIdsToDelete = ['user-koordinator', 'user-petugas', 'user-monitor', 'user-usaha'];
+          const filtered = parsed.filter(u => !sampleIdsToDelete.includes(u.id));
+          if (filtered.length > 0) return filtered;
+        }
       } catch (e) {
         // fallback
       }
@@ -72,9 +77,13 @@ export default function App() {
     const saved = localStorage.getItem('kp_currentUser');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        const sampleIdsToDelete = ['user-koordinator', 'user-petugas', 'user-monitor', 'user-usaha'];
+        if (parsed && !sampleIdsToDelete.includes(parsed.id)) {
+          return parsed;
+        }
       } catch (e) {
-        return DEFAULT_USERS[0];
+        // fallback
       }
     }
     return DEFAULT_USERS[0]; // Default Super Admin
@@ -190,7 +199,10 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter(c => c.id !== 'cs-sample-1' && c.userId !== 'user-usaha');
+          return filtered;
+        }
       } catch (e) {}
     }
     return INITIAL_CONSULTATIONS;

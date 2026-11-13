@@ -169,28 +169,28 @@ export const PermitsManager: React.FC<PermitsManagerProps> = ({
   // Export to Excel (.xlsx) - Tanpa Estimasi Biaya
   const handleExportExcel = () => {
     const headers = [
+      'Nama Perusahaan',
+      'Alamat',
       'Nama Perizinan',
-      'Perusahaan',
-      'Kategori',
-      'Nomor Dokumen',
-      'Instansi Penerbit',
-      'Tanggal Terbit',
-      'Tanggal Kedaluwarsa',
+      'Pengunaan',
+      'Nomor Izin',
+      'Tanggal Terbit (YYYY-MM-DD)',
+      'Tanggal Kedaluwarsa (YYYY-MM-DD)',
       'Sisa Hari',
       'Status Masa Berlaku',
       'Status Tindak Lanjut',
-      'PIC',
-      'Email PIC',
+      'Nama Penangung Jawab',
+      'Email',
       'Catatan Teknis'
     ];
     const dataRows = filteredPermits.map((p) => {
       const days = calculateDaysRemaining(p.expiryDate);
       return [
-        p.permitName,
         p.companyName,
-        p.category,
+        p.address || '-',
+        p.permitName,
+        p.usage || p.category,
         p.documentNumber,
-        p.issuingAuthority,
         p.issuedDate,
         p.expiryDate,
         days,
@@ -204,9 +204,9 @@ export const PermitsManager: React.FC<PermitsManagerProps> = ({
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
     ws['!cols'] = [
-      { wch: 35 }, { wch: 28 }, { wch: 20 }, { wch: 25 },
-      { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 10 },
-      { wch: 22 }, { wch: 22 }, { wch: 20 }, { wch: 25 }, { wch: 35 }
+      { wch: 28 }, { wch: 36 }, { wch: 38 }, { wch: 30 },
+      { wch: 25 }, { wch: 16 }, { wch: 16 }, { wch: 10 },
+      { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 25 }, { wch: 35 }
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Perizinan & Sertifikat');
@@ -420,17 +420,22 @@ export const PermitsManager: React.FC<PermitsManagerProps> = ({
                         )}
                       </td>
 
-                      {/* Company */}
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      {/* Company & Address */}
+                      <td className="py-3 px-4 max-w-[220px]">
                         <div className="font-semibold text-slate-800">
                           {permit.companyName}
                         </div>
+                        {permit.address && (
+                          <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-2" title={permit.address}>
+                            {permit.address}
+                          </div>
+                        )}
                       </td>
 
-                      {/* Category & Doc No */}
+                      {/* Category / Usage & Doc No */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[11px] mb-1">
-                          {permit.category}
+                          {permit.usage || permit.category}
                         </span>
                         <div className="text-[11px] font-mono text-slate-500">
                           {permit.documentNumber}

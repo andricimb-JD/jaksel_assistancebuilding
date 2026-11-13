@@ -117,6 +117,8 @@ export interface Permit {
   picName: string;
   picEmail: string;
   reminderIntervals: number[];
+  address?: string; // Alamat Perusahaan / Lokasi Gedung
+  usage?: string; // Pengunaan / Peruntukan Dokumen
   notes?: string;
   lastEmailSentDate?: string;
   status?: PermitStatus;

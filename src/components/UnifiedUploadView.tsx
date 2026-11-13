@@ -104,24 +104,22 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
     const ws_data = [
       [
         'Nama Perusahaan',
-        'NIB',
+        'Alamat',
         'Nama Perizinan',
-        'Kategori',
-        'Nomor Dokumen',
-        'Instansi Penerbit',
+        'Pengunaan',
+        'Nomor Izin',
         'Tanggal Terbit (YYYY-MM-DD)',
         'Tanggal Kedaluwarsa (YYYY-MM-DD)',
-        'Nama PIC',
-        'Email PIC',
+        'Nama Penangung Jawab',
+        'Email',
         'Catatan Teknis'
       ],
       [
         'PT Nusantara Petrokimia Raya',
-        '1289000452109',
+        'Jl. Gatot Subroto Kav. 42, Jakarta Selatan',
         'Izin Lingkungan Hidup (Persetujuan Lingkungan / AMDAL)',
-        'Lingkungan Hidup',
+        'Pabrik Industri Kimia & Gudang Bahan Baku',
         'SK.520/MENLHK/SETJEN/PLA.4/2021',
-        'Kementerian Lingkungan Hidup dan Kehutanan RI',
         '2023-11-05',
         '2026-11-05',
         'Andri Wicaksono',
@@ -129,33 +127,67 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
         'Kajian teknis addendum AMDAL dan persetujuan air limbah'
       ],
       [
-        'PT Indo Prima Manufaktur Tbk',
-        '9120008471923',
-        'Sertifikat Laik Fungsi (SLF) Gedung Pabrik & Gudang A',
-        'Bangunan & Konstruksi',
-        '640/SLF-DPMPTSP/BKS/2021',
-        'Dinas PMPTSP & Tata Bangunan Kab. Bekasi',
-        '2021-10-20',
-        '2026-10-20',
-        'Budi Santoso',
-        'legal.indoprima@corp.co.id',
-        'Pemeriksaan struktur arsitektur pabrik berkala'
-      ],
-      [
         'PT Cipta Pangan Lestari',
-        '8120309988776',
+        'Jl. TB Simatupang No. 18, Pasar Minggu, Jakarta Selatan',
         'Sertifikat Halal BPJPH (Bahan Baku & Lini Produksi)',
-        'Kesehatan & Pangan',
+        'Fasilitas Pengolahan Makanan & Minuman Kemasan',
         'ID00410000189420921',
-        'BPJPH Kementerian Agama RI',
         '2022-11-15',
         '2026-11-15',
         'Hendra Gunawan',
         'andri.cimb@gmail.com',
         'Audit internal SJPH telah siap'
+      ],
+      [
+        'PT Indo Prima Manufaktur Tbk',
+        'Jl. HR Rasuna Said Blok X-5, Setiabudi, Jakarta Selatan',
+        'Sertifikat Laik Fungsi (SLF) Gedung Pabrik & Gudang A',
+        'Gedung Pabrik Manufaktur & Logistik Modern',
+        '640/SLF-DPMPTSP/JS/2021',
+        '2021-10-15',
+        '2026-10-15',
+        'Budi Santoso',
+        'legal.indoprima@corp.co.id',
+        'Dokumen perpanjangan SLF struktur baja'
+      ],
+      [
+        'PT Media Citra Megatron',
+        'Jl. Jenderal Sudirman Kav. 52-53, Kebayoran Baru, Jakarta Selatan',
+        'Izin Penyelenggaraan Reklame (IPR JakEVO)',
+        'Megatron / Videotron LED Fasad Gedung',
+        'IPR-PTSP-JS/2023/8891',
+        '2023-08-20',
+        '2026-08-20',
+        'Ahmad Fauzi',
+        'reklame@mediacitra.id',
+        'Struktur reklame ber-IPTB dan bukti SKPD/SSPD Bapenda DKI'
+      ],
+      [
+        'CV Berkah Energi Mandiri',
+        'Jl. Kemang Raya No. 101, Mampang Prapatan, Jakarta Selatan',
+        'Surat Izin Laik Operasi (SLO) Genset Pembangkit Darurat 500 kVA',
+        'Sistem Kelistrikan Cadangan Gedung Bertingkat',
+        'SLO-DJE/ESDM/2024/771',
+        '2024-12-20',
+        '2026-12-20',
+        'Rahmat Hidayat',
+        'rahmat.energi@gmail.com',
+        'Jadwal inspeksi teknis dari LIT'
       ]
     ];
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [
+      { wch: 28 },
+      { wch: 42 },
+      { wch: 44 },
+      { wch: 36 },
+      { wch: 28 },
+      { wch: 26 },
+      { wch: 30 },
+      { wch: 24 },
+      { wch: 26 },
+      { wch: 42 }
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template Perizinan');
     XLSX.writeFile(wb, `Template_Upload_Perizinan_Sertifikat.xlsx`);
@@ -271,15 +303,17 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
       };
 
       const companyName = String(getVal('Nama Perusahaan', 'Perusahaan', 'NamaPT', 'Nama') || '').trim();
+      const address = String(getVal('Alamat', 'Alamat Perusahaan', 'Alamat Gedung', 'Lokasi', 'Address') || '').trim();
       const nib = String(getVal('NIB', 'Nomor Induk Berusaha') || '').trim();
       const permitName = String(getVal('Nama Perizinan', 'Perizinan', 'Nama Dokumen', 'Izin') || '').trim();
-      const categoryRaw = String(getVal('Kategori', 'Kategori Izin', 'Category') || 'Legalitas Dasar').trim();
-      const documentNumber = String(getVal('Nomor Dokumen', 'No Dokumen', 'No Izin', 'Nomor SK') || 'PENDING-REG').trim();
-      const issuingAuthority = String(getVal('Instansi Penerbit', 'Penerbit', 'Instansi') || 'BKPM / OSS-RBA').trim();
-      const issuedDate = String(getVal('Tanggal Terbit', 'Tgl Terbit', 'Issued Date') || new Date().toISOString().split('T')[0]).trim();
-      const expiryDate = String(getVal('Tanggal Kedaluwarsa', 'Tgl Habis', 'Expiry Date', 'Masa Berlaku') || '').trim();
-      const picName = String(getVal('Nama PIC', 'PIC', 'Penanggung Jawab') || 'Andri Wicaksono').trim();
-      const picEmail = String(getVal('Email PIC', 'Email', 'Surel') || 'andri.cimb@gmail.com').trim();
+      const usage = String(getVal('Pengunaan', 'Penggunaan', 'Peruntukan', 'Fungsi') || '').trim();
+      const categoryRaw = String(getVal('Kategori', 'Kategori Izin', 'Category') || '').trim();
+      const documentNumber = String(getVal('Nomor Izin', 'Nomor Dokumen', 'No Izin', 'No Dokumen', 'Nomor SK') || `IZIN-${Date.now().toString().slice(-6)}-${idx}`).trim();
+      const issuingAuthority = String(getVal('Instansi Penerbit', 'Penerbit', 'Instansi') || 'PTSP Pemprov DKI Jakarta').trim();
+      const issuedDate = String(getVal('Tanggal Terbit (YYYY-MM-DD)', 'Tanggal Terbit', 'Tgl Terbit', 'Issued Date') || new Date().toISOString().split('T')[0]).trim();
+      const expiryDate = String(getVal('Tanggal Kedaluwarsa (YYYY-MM-DD)', 'Tanggal Kedaluwarsa', 'Tgl Habis', 'Expiry Date', 'Masa Berlaku') || '').trim();
+      const picName = String(getVal('Nama Penangung Jawab', 'Nama Penanggung Jawab', 'Nama PIC', 'PIC', 'Penanggung Jawab') || 'Andri Wicaksono').trim();
+      const picEmail = String(getVal('Email', 'Email PIC', 'Surel') || 'andri.cimb@gmail.com').trim();
       const notes = String(getVal('Catatan Teknis', 'Catatan', 'Notes') || '').trim();
 
       if (!companyName) {
@@ -302,21 +336,32 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
       const resolvedNib = nib || (matchedCompany ? matchedCompany.nib : undefined);
 
       let category: PermitCategory = 'Legalitas Dasar';
-      const catLower = categoryRaw.toLowerCase();
-      if (catLower.includes('lingkungan')) category = 'Lingkungan Hidup';
-      else if (catLower.includes('bangunan') || catLower.includes('konstruksi')) category = 'Bangunan & Konstruksi';
-      else if (catLower.includes('kesehatan') || catLower.includes('pangan') || catLower.includes('halal')) category = 'Kesehatan & Pangan';
-      else if (catLower.includes('k3') || catLower.includes('ketenagakerjaan')) category = 'K3 & Ketenagakerjaan';
-      else if (catLower.includes('operasional') || catLower.includes('teknis')) category = 'Operasional & Teknis';
-      else if (catLower.includes('mutu') || catLower.includes('standar')) category = 'Mutu & Standar Industri';
+      const textToClassify = `${permitName} ${usage} ${categoryRaw}`.toLowerCase();
+      if (textToClassify.includes('reklame') || textToClassify.includes('billboard') || textToClassify.includes('videotron') || textToClassify.includes('neon box') || textToClassify.includes('ipr')) {
+        category = 'Penyelenggaraan Reklame';
+      } else if (textToClassify.includes('lingkungan') || textToClassify.includes('amdal') || textToClassify.includes('sppl') || textToClassify.includes('limbah') || textToClassify.includes('ukl')) {
+        category = 'Lingkungan Hidup';
+      } else if (textToClassify.includes('bangunan') || textToClassify.includes('konstruksi') || textToClassify.includes('slf') || textToClassify.includes('pbg') || textToClassify.includes('imb')) {
+        category = 'Bangunan & Konstruksi';
+      } else if (textToClassify.includes('halal') || textToClassify.includes('pangan') || textToClassify.includes('kesehatan') || textToClassify.includes('bpom')) {
+        category = 'Kesehatan & Pangan';
+      } else if (textToClassify.includes('k3') || textToClassify.includes('damkar') || textToClassify.includes('petir') || textToClassify.includes('lift') || textToClassify.includes('disnaker')) {
+        category = 'K3 & Ketenagakerjaan';
+      } else if (textToClassify.includes('operasi') || textToClassify.includes('genset') || textToClassify.includes('slo') || textToClassify.includes('listrik') || textToClassify.includes('teknis')) {
+        category = 'Operasional & Teknis';
+      } else if (textToClassify.includes('mutu') || textToClassify.includes('standar') || textToClassify.includes('iso') || textToClassify.includes('sni')) {
+        category = 'Mutu & Standar Industri';
+      }
 
       validated.push({
         id: `prm-bulk-${Date.now().toString().slice(-6)}-${idx}`,
         companyId,
         companyName,
         nib: resolvedNib,
+        address: address || undefined,
         permitName,
         category,
+        usage: usage || undefined,
         documentNumber,
         issuingAuthority,
         issuedDate,
@@ -720,7 +765,7 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
                 Tarik &amp; Lepaskan File Spreadsheet Perizinan ke Sini
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Mendukung file Microsoft Excel (.xlsx, .xls) dan CSV dengan kolom Perusahaan, NIB, Nama Izin, Nomor Dokumen, dan Tanggal Kedaluwarsa.
+                Mendukung file Microsoft Excel (.xlsx, .xls) dan CSV dengan kolom Nama Perusahaan, Alamat, Nama Perizinan, Pengunaan, Nomor Izin, Tanggal Terbit, dan Tanggal Kedaluwarsa.
               </p>
 
               <div className="mt-5 flex items-center justify-center space-x-3">
@@ -734,7 +779,7 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
               </div>
 
               <div className="mt-4 text-[11px] text-slate-400">
-                {isProcessingPermit ? 'Sedang membaca file...' : 'Format baku OSS-RBA BKPM • Aman & Terverifikasi Langsung'}
+                {isProcessingPermit ? 'Sedang membaca file...' : 'Format Template Resmi Perizinan • Aman & Terverifikasi Langsung'}
               </div>
             </div>
           ) : (
@@ -746,7 +791,7 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
                 rows={6}
                 value={permitPasteText}
                 onChange={(e) => setPermitPasteText(e.target.value)}
-                placeholder={`Nama Perusahaan,NIB,Nama Perizinan,Kategori,Nomor Dokumen,Instansi Penerbit,Tanggal Terbit,Tanggal Kedaluwarsa,Nama PIC,Email PIC\nPT Nusantara Petrokimia Raya,1289000452109,Izin Lingkungan Hidup,Lingkungan Hidup,SK.520/2021,KLHK,2023-11-05,2026-11-05,Andri,andri.cimb@gmail.com`}
+                placeholder={`Nama Perusahaan,Alamat,Nama Perizinan,Pengunaan,Nomor Izin,Tanggal Terbit (YYYY-MM-DD),Tanggal Kedaluwarsa (YYYY-MM-DD),Nama Penangung Jawab,Email,Catatan Teknis\nPT Nusantara Petrokimia Raya,Jl. Gatot Subroto Kav. 42 Jakarta Selatan,Izin Lingkungan Hidup (AMDAL),Pabrik Industri Kimia,SK.520/MENLHK/2021,2023-11-05,2026-11-05,Andri Wicaksono,andri.cimb@gmail.com,Kajian teknis addendum`}
                 className="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
               />
               <div className="flex justify-end">
@@ -809,16 +854,19 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
 
               <div className="overflow-x-auto max-h-72 border border-slate-200 rounded-lg">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-700 uppercase font-semibold sticky top-0 z-10">
+                  <thead className="bg-slate-100 text-slate-700 uppercase font-semibold sticky top-0 z-10 text-[11px]">
                     <tr>
                       <th className="py-2.5 px-3">No</th>
-                      <th className="py-2.5 px-3">Perusahaan</th>
-                      <th className="py-2.5 px-3">NIB</th>
+                      <th className="py-2.5 px-3">Nama Perusahaan</th>
+                      <th className="py-2.5 px-3">Alamat</th>
                       <th className="py-2.5 px-3">Nama Perizinan</th>
-                      <th className="py-2.5 px-3">Kategori</th>
-                      <th className="py-2.5 px-3">No. Dokumen</th>
-                      <th className="py-2.5 px-3">Kedaluwarsa</th>
-                      <th className="py-2.5 px-3">PIC Email</th>
+                      <th className="py-2.5 px-3">Pengunaan</th>
+                      <th className="py-2.5 px-3">Nomor Izin</th>
+                      <th className="py-2.5 px-3">Tgl Terbit</th>
+                      <th className="py-2.5 px-3">Tgl Kedaluwarsa</th>
+                      <th className="py-2.5 px-3">Penangung Jawab</th>
+                      <th className="py-2.5 px-3">Email</th>
+                      <th className="py-2.5 px-3">Catatan Teknis</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -826,12 +874,15 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
                       <tr key={idx} className="hover:bg-slate-50 transition">
                         <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
                         <td className="py-2 px-3 font-semibold text-slate-800">{item.companyName}</td>
-                        <td className="py-2 px-3 font-mono text-[11px] text-slate-500">{item.nib || '-'}</td>
+                        <td className="py-2 px-3 text-slate-600 max-w-[200px] truncate" title={item.address || '-'}>{item.address || '-'}</td>
                         <td className="py-2 px-3 text-slate-900 font-medium">{item.permitName}</td>
-                        <td className="py-2 px-3 text-slate-600">{item.category}</td>
+                        <td className="py-2 px-3 text-slate-600 font-medium">{item.usage || item.category || '-'}</td>
                         <td className="py-2 px-3 font-mono text-[11px] text-slate-500">{item.documentNumber}</td>
+                        <td className="py-2 px-3 font-mono text-[11px] text-slate-500">{item.issuedDate || '-'}</td>
                         <td className="py-2 px-3 font-bold text-slate-800">{item.expiryDate}</td>
+                        <td className="py-2 px-3 text-slate-700">{item.picName || '-'}</td>
                         <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{item.picEmail}</td>
+                        <td className="py-2 px-3 text-slate-500 max-w-[180px] truncate" title={item.notes || '-'}>{item.notes || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
