@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileWarning, 
-  Printer, 
-  Download, 
-  Mail, 
-  CheckCircle2, 
-  Edit3, 
-  Building2, 
-  Save, 
+import {
+  FileWarning,
+  Printer,
+  Mail,
+  CheckCircle2,
+  Edit3,
+  Save,
   Sparkles,
   Plus,
-  Trash2,
   FileSpreadsheet,
-  Eye,
-  Check,
-  RotateCcw
+  Check
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { WarningLetter, WarningLetterItem, Permit, LKPMRecord, Company, UserRole } from '../types';
 import { formatIndonesianDate, calculateDaysRemaining } from '../utils/helpers';
+
+type LetterTemplateMode = 'SLF_RKK' | 'PBG_IPR';
 
 interface WarningLetterGeneratorProps {
   companies: Company[];
@@ -31,279 +28,340 @@ interface WarningLetterGeneratorProps {
   onSendEmailWithLetter: (letter: WarningLetter) => void;
 }
 
+const TEMPLATE_PRESETS: Record<
+  LetterTemplateMode,
+  {
+    subjectTitle: string;
+    recipientPlaceholderOwner: string;
+    recipientPlaceholderObject: string;
+    openingText: string;
+    reminderLeadText: string;
+    bullet1Bold: string;
+    bullet1Rest: string;
+    bullet2Bold: string;
+    bullet2Rest: string;
+    bullet3Bold: string;
+    bullet3Rest: string;
+    supportText: string;
+    contactScope: string;
+    primaryDocLabel: string;
+    primaryDateLabel: string;
+    primaryExpiryLabel: string;
+    secondaryDocLabel: string;
+    secondaryExpiryLabel: string;
+    attachmentDefault: string;
+  }
+> = {
+  SLF_RKK: {
+    subjectTitle: 'Pemberitahuan dan Pengingat Perpanjangan SLF',
+    recipientPlaceholderOwner: '[NAMA PEMILIK/PENGELOLA BANGUNAN]',
+    recipientPlaceholderObject: '[NAMA BANGUNAN]',
+    openingText:
+      'Dalam rangka mendukung tertib penyelenggaraan bangunan gedung serta pemenuhan aspek kelayakan fungsi dan keselamatan bangunan gedung di wilayah Kota Administrasi Jakarta Selatan sesuai Peraturan Pemerintah Nomor 16 Tahun 2021, bersama ini disampaikan pemberitahuan kepada Saudara terkait masa berlaku Sertifikat Laik Fungsi (SLF) bangunan gedung yang Saudara miliki/kelola.',
+    reminderLeadText:
+      'Sehubungan dengan masa berlaku dokumen tersebut, kami mengingatkan Saudara untuk memperhatikan masa berlaku SLF dan/atau dokumen keselamatan kebakaran serta melakukan persiapan pengurusan perpanjangan sesuai ketentuan yang berlaku, khususnya apabila masa berlakunya akan segera berakhir. Untuk itu, Saudara diharapkan dapat:',
+    bullet1Bold: 'Memeriksa masa berlaku Sertifikat Laik Fungsi (SLF)',
+    bullet1Rest: ' dan/atau dokumen keselamatan kebakaran (RKK/SKK) bangunan gedung;',
+    bullet2Bold: 'Melakukan pengurusan perpanjangan/pembaruan',
+    bullet2Rest: ' apabila masa berlaku dokumen telah berakhir atau akan berakhir;',
+    bullet3Bold: 'Memastikan dokumen administrasi dan teknis',
+    bullet3Rest:
+      ' yang diperlukan telah tersedia dan sesuai dengan kondisi bangunan gedung; dan mengikuti mekanisme serta persyaratan pelayanan yang berlaku pada Pemerintah Provinsi DKI Jakarta.',
+    supportText:
+      'Langkah tersebut diharapkan dapat mendukung pemenuhan persyaratan kelayakan fungsi, keselamatan penghuni/pengguna bangunan, serta tertib administrasi penyelenggaraan bangunan gedung.',
+    contactScope: 'SLF dan/atau dokumen keselamatan kebakaran',
+    primaryDocLabel: 'Nomor SLF',
+    primaryDateLabel: 'Tanggal SLF',
+    primaryExpiryLabel: 'Masa Berlaku SLF s.d.',
+    secondaryDocLabel: 'Nomor/Tanggal RKK/SKK',
+    secondaryExpiryLabel: 'Masa Berlaku RKK/SKK s.d.',
+    attachmentDefault: ''
+  },
+  PBG_IPR: {
+    subjectTitle: 'Pemberitahuan dan Pengingat Perpanjangan PBG/IPR',
+    recipientPlaceholderOwner: '[NAMA PEMILIK/PENGELOLA REKLAME]',
+    recipientPlaceholderObject: '[NAMA REKLAME]',
+    openingText:
+      'Dalam rangka mendukung tertib penyelenggaraan bangunan gedung serta pemenuhan aspek kelayakan fungsi dan keselamatan bangunan gedung di wilayah Kota Administrasi Jakarta Selatan sesuai Peraturan Pemerintah Nomor 16 Tahun 2021, bersama ini disampaikan pemberitahuan kepada Saudara terkait masa berlaku Persetujuan Bangunan Gedung (PBG BR)/ IPR bangunan reklame yang Saudara miliki/kelola.',
+    reminderLeadText:
+      'Sehubungan dengan masa berlaku dokumen tersebut, kami mengingatkan Saudara untuk memperhatikan masa berlaku PBG BR dan/atau Izin Penyelenggaraan Reklame (IPR) serta melakukan persiapan pengurusan perpanjangan sesuai ketentuan yang berlaku, khususnya apabila masa berlakunya akan segera berakhir. Untuk itu, Saudara diharapkan dapat:',
+    bullet1Bold: 'Memeriksa masa berlaku Persetujuan Bangunan Gedung Bangunan Reklame (PBG BR)',
+    bullet1Rest: ' dan/atau Izin Penyelenggaraan Reklame (IPR);',
+    bullet2Bold: 'Melakukan pengurusan perpanjangan/pembaruan',
+    bullet2Rest: ' apabila masa berlaku dokumen telah berakhir atau akan berakhir;',
+    bullet3Bold: 'Memastikan dokumen administrasi dan teknis',
+    bullet3Rest:
+      ' yang diperlukan telah tersedia dan sesuai dengan kondisi bangunan reklame; dan mengikuti mekanisme serta persyaratan pelayanan yang berlaku pada Pemerintah Provinsi DKI Jakarta.',
+    supportText:
+      'Langkah tersebut diharapkan dapat mendukung pemenuhan persyaratan perizinan reklame, penataan reklame sesuai ketentuan tata ruang, serta tertib administrasi penyelenggaraan bangunan reklame.',
+    contactScope: 'PBG BR dan/atau Izin Penyelenggaraan Reklame (IPR)',
+    primaryDocLabel: 'Nomor PBG BR',
+    primaryDateLabel: 'Tanggal PBG BR',
+    primaryExpiryLabel: 'Masa Berlaku PBG BR s.d.',
+    secondaryDocLabel: 'Nomor/Tanggal IPR',
+    secondaryExpiryLabel: 'Masa Berlaku IPR s.d.',
+    attachmentDefault: '-'
+  }
+};
+
 export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   companies,
   permits,
-  lkpmRecords,
-  savedLetters,
+  lkpmRecords: _lkpmRecords,
+  savedLetters: _savedLetters,
   currentUserRole = 'koordinator',
   initialItem,
   onSaveLetter,
   onSendEmailWithLetter
 }) => {
-  // Mode Edit toggle
   const [isEditMode, setIsEditMode] = useState<boolean>(true);
+  const [templateMode, setTemplateMode] = useState<LetterTemplateMode>('SLF_RKK');
 
-  // Core Letter State
+  // Core Company & Metadata
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(companies[0]?.id || '');
-  const [letterType, setLetterType] = useState<WarningLetter['type']>('Surat Peringatan Tertulis Terpadu (Izin Kedaluwarsa & Keterlambatan LKPM)');
-  const [urgency, setUrgency] = useState<WarningLetter['urgency']>('Sangat Segera / Mendesak');
-  const [letterNumber, setLetterNumber] = useState<string>('');
-  const [letterDate, setLetterDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [letterNumber, setLetterNumber] = useState<string>('[NOMOR SURAT]');
+  const [letterSifat, setLetterSifat] = useState<string>('Penting');
+  const [letterAttachment, setLetterAttachment] = useState<string>('');
   const [letterCity, setLetterCity] = useState<string>('Jakarta');
-  
-  // Kop Surat & Instansi
-  const [senderOrganization, setSenderOrganization] = useState<string>('BADAN PENGAWAS KEPATUHAN & REGULASI PERIZINAN USAHA');
-  const [kopSubtitle, setKopSubtitle] = useState<string>('DIREKTORAT INTEGRITAS KEPATUHAN & AUDIT REGULASI PERIZINAN USAHA');
-  const [kopAddress, setKopAddress] = useState<string>('Gedung Menara Kepatuhan Lt. 14, Jl. Jenderal Sudirman Kav. 52-53, Jakarta Selatan 12190');
-  const [kopContact, setKopContact] = useState<string>('Telepon: (021) 5299-1000 | Email: kepatuhan.audit@oss-compliance.go.id | Laman: www.kepatuhanplus.id');
+  const [letterDate, setLetterDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  // Recipient / Company Details (Fully editable)
-  const [recipientName, setRecipientName] = useState<string>('Andri Wicaksono');
-  const [recipientRole, setRecipientRole] = useState<string>('Direktur Kepatuhan & Hubungan Korporasi');
+  // Kop Surat Resmi Pemprov DKI Jakarta / UP. PMPTSP Jakarta Selatan
+  const [senderOrganization, setSenderOrganization] = useState<string>(
+    'PEMERINTAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA'
+  );
+  const [kopSubtitle, setKopSubtitle] = useState<string>(
+    'UNIT PENANAMAN MODAL DAN PELAYANAN TERPADU SATU PINTU'
+  );
+  const [kopUnitCity, setKopUnitCity] = useState<string>(
+    'KOTA ADMINISTRASI JAKARTA SELATAN'
+  );
+  const [kopAddress, setKopAddress] = useState<string>(
+    'Jalan Prapanca Raya No.9, Telepon 72789159'
+  );
+  const [kopPostalCode, setKopPostalCode] = useState<string>('Kode Pos : 12170');
+
+  // Tujuan Surat
+  const [recipientOwnerName, setRecipientOwnerName] = useState<string>(
+    TEMPLATE_PRESETS.SLF_RKK.recipientPlaceholderOwner
+  );
+  const [recipientObjectName, setRecipientObjectName] = useState<string>(
+    TEMPLATE_PRESETS.SLF_RKK.recipientPlaceholderObject
+  );
   const [recipientEmail, setRecipientEmail] = useState<string>('andri.cimb@gmail.com');
-  const [companyName, setCompanyName] = useState<string>('PT Nusantara Petrokimia Raya');
-  const [companyNIB, setCompanyNIB] = useState<string>('1289000452109');
-  const [companyAddress, setCompanyAddress] = useState<string>('Kawasan Industri Cilegon Kav. B-12, Cilegon, Banten');
+  const [recipientLocation, setRecipientLocation] = useState<string>('Jakarta');
 
-  // Letter Subject & Body
-  const [subjectTitle, setSubjectTitle] = useState<string>('SURAT PERINGATAN RESMI TERPADU: KEDALUWARSA PERIZINAN BERUSAHA DAN KETERLAMBATAN PENYAMPAIAN LKPM BKPM');
-  const [openingText, setOpeningText] = useState<string>(
-    'Merujuk pada hasil evaluasi komparasi kepatuhan terpadu berbasis Nomor Induk Berusaha (NIB) melalui Sistem Pengawasan Perizinan Berusaha Terintegrasi OSS-RBA, serta berdasarkan ketentuan perundang-undangan:'
-  );
-  
-  // Legal Basis List
-  const [legalBases, setLegalBases] = useState<string[]>([
-    'Undang-Undang Nomor 6 Tahun 2023 tentang Penetapan Peraturan Pemerintah Pengganti Undang-Undang Nomor 2 Tahun 2022 tentang Cipta Kerja menjadi Undang-Undang',
-    'Peraturan Pemerintah Nomor 5 Tahun 2021 tentang Penyelenggaraan Perizinan Berusaha Berbasis Risiko (Khususnya Pengawasan Perizinan & Sanksi Administratif)',
-    'Peraturan Badan Koordinasi Penanaman Modal (BKPM) Nomor 5 Tahun 2021 tentang Pedoman dan Tata Cara Pengawasan Perizinan Berusaha Berbasis Risiko'
-  ]);
+  // Isi & Tabel Data Dokumen (8 baris)
+  const [subjectTitle, setSubjectTitle] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.subjectTitle);
+  const [openingText, setOpeningText] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.openingText);
 
-  // Selected violation items to attach (Fully editable rows)
-  const [selectedItems, setSelectedItems] = useState<WarningLetterItem[]>([]);
-  
-  // Deadline & Sanctions
-  const [deadlineDays, setDeadlineDays] = useState<number>(5);
-  const [additionalNotes, setAdditionalNotes] = useState<string>(
-    'Kelalaian ganda dalam menindaklanjuti perpanjangan perizinan berusaha dan pelaporan LKPM dalam batas waktu 5 (lima) hari kerja akan berakibat pada penerbitan sanksi administratif berjenjang, penangguhan hak akses akun OSS, pembekuan fasilitas kepabeanan, serta penghentian sementara operasional lini produksi.'
+  const [docOwner, setDocOwner] = useState<string>('');
+  const [docBuildingName, setDocBuildingName] = useState<string>('');
+  const [docAddress, setDocAddress] = useState<string>('');
+  const [docPrimaryNumber, setDocPrimaryNumber] = useState<string>('');
+  const [docPrimaryDate, setDocPrimaryDate] = useState<string>('');
+  const [docPrimaryExpiry, setDocPrimaryExpiry] = useState<string>('');
+  const [docSecondaryNumberDate, setDocSecondaryNumberDate] = useState<string>('');
+  const [docSecondaryExpiry, setDocSecondaryExpiry] = useState<string>('');
+
+  // Paragraf Pengingat & Poin Harapan
+  const [reminderLeadText, setReminderLeadText] = useState<string>(
+    TEMPLATE_PRESETS.SLF_RKK.reminderLeadText
   );
+  const [bullet1Bold, setBullet1Bold] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet1Bold);
+  const [bullet1Rest, setBullet1Rest] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet1Rest);
+  const [bullet2Bold, setBullet2Bold] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet2Bold);
+  const [bullet2Rest, setBullet2Rest] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet2Rest);
+  const [bullet3Bold, setBullet3Bold] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet3Bold);
+  const [bullet3Rest, setBullet3Rest] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet3Rest);
+  const [supportText, setSupportText] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.supportText);
+  const [picOfficerName, setPicOfficerName] = useState<string>('XXX');
   const [closingText, setClosingText] = useState<string>(
-    'Demikian Surat Teguran Resmi Terpadu ini disampaikan untuk menjadi perhatian serius dan dilaksanakan dengan penuh tanggung jawab demi kepatuhan hukum dan kelancaran kegiatan berusaha.'
+    'Demikian pemberitahuan ini disampaikan untuk menjadi perhatian dan dapat ditindaklanjuti. Atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.'
   );
 
-  // Signatory (Kepala Unit)
-  const [signatoryName, setSignatoryName] = useState<string>('( Nama Kepala Unit )');
-  const [signatoryTitle, setSignatoryTitle] = useState<string>('Kepala Unit');
-  const [signatoryNIP, setSignatoryNIP] = useState<string>('........................');
+  // Tanda Tangan Kepala Unit Pengelola PMPTSP
+  const [signatoryLine1, setSignatoryLine1] = useState<string>('KEPALA UNIT PENGELOLA PMPTSP');
+  const [signatoryLine2, setSignatoryLine2] = useState<string>('KOTA ADMINISTRASI JAKARTA SELATAN');
+  const [signatoryBadge, setSignatoryBadge] = useState<string>('TTE');
 
-  // Carbon copies (Tembusan)
+  // Tembusan
   const [copies, setCopies] = useState<string[]>([
-    'Menteri Investasi / Kepala Badan Koordinasi Penanaman Modal (BKPM) RI;',
-    'Gubernur / Kepala Dinas Penanaman Modal dan Pelayanan Terpadu Satu Pintu (DPMPTSP) Terkait;',
-    'Dewan Komisaris dan Manajemen Eksekutif Perusahaan;',
-    'Pertinggal / Arsip Pengawasan Kepatuhan Hukum.'
+    'Kepala DPMPTSP Provinsi DKI Jakarta;',
+    'Inspektorat Pembantu Kota Adm Jaksel'
   ]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) || companies[0];
+  const preset = TEMPLATE_PRESETS[templateMode];
 
-  // Handle incoming initialItem (e.g. from NIB comparison)
+  // Switch template texts cleanly
+  const applyTemplateMode = (mode: LetterTemplateMode) => {
+    const p = TEMPLATE_PRESETS[mode];
+    setTemplateMode(mode);
+    setSubjectTitle(p.subjectTitle);
+    setLetterAttachment(p.attachmentDefault);
+    setOpeningText(p.openingText);
+    setReminderLeadText(p.reminderLeadText);
+    setBullet1Bold(p.bullet1Bold);
+    setBullet1Rest(p.bullet1Rest);
+    setBullet2Bold(p.bullet2Bold);
+    setBullet2Rest(p.bullet2Rest);
+    setBullet3Bold(p.bullet3Bold);
+    setBullet3Rest(p.bullet3Rest);
+    setSupportText(p.supportText);
+
+    if (!selectedCompany) {
+      setRecipientOwnerName(p.recipientPlaceholderOwner);
+      setRecipientObjectName(p.recipientPlaceholderObject);
+    }
+  };
+
+  // Detect template automatically if initialItem is passed
   useEffect(() => {
-    if (initialItem) {
-      if (initialItem.type === 'DUAL_VIOLATION') {
-        const targetComp = initialItem.record.company || initialItem.record;
-        if (targetComp?.id) {
-          setSelectedCompanyId(targetComp.id);
-        }
-        applyPreset('DUAL_VIOLATION');
-      } else if (initialItem.type === 'PERMIT') {
-        setSelectedCompanyId(initialItem.record.companyId);
-        applyPreset('EXPIRED_PERMIT');
-      } else if (initialItem.type === 'LKPM') {
-        setSelectedCompanyId(initialItem.record.companyId);
-        applyPreset('LKPM_OVERDUE');
-      }
+    if (!initialItem) return;
+    const rec = initialItem.record;
+    const compId = rec?.company?.id || rec?.companyId;
+    if (compId) {
+      setSelectedCompanyId(compId);
+    }
+    const titleStr = `${rec?.permitName || ''} ${rec?.category || ''} ${rec?.usage || ''}`.toLowerCase();
+    if (
+      titleStr.includes('reklame') ||
+      titleStr.includes('ipr') ||
+      titleStr.includes('pbg br')
+    ) {
+      applyTemplateMode('PBG_IPR');
+    } else {
+      applyTemplateMode('SLF_RKK');
     }
   }, [initialItem]);
 
-  // Generate Letter Number on mount or change
+  // Populate fields from selected company & permits
   useEffect(() => {
-    const randomSeq = Math.floor(100 + Math.random() * 900);
-    const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-    const curMonth = romanMonths[new Date().getMonth()];
-    const curYear = new Date().getFullYear();
-    setLetterNumber(`${randomSeq}/CORP-AUDIT/ST-TERPADU/${curMonth}/${curYear}`);
-  }, [selectedCompanyId, letterType]);
+    const p = TEMPLATE_PRESETS[templateMode];
 
-  // Update defaults when company changes
-  useEffect(() => {
-    if (selectedCompany) {
-      setCompanyName(selectedCompany.name);
-      setCompanyNIB(selectedCompany.nib);
-      setCompanyAddress(selectedCompany.address);
-      setRecipientName(selectedCompany.picName);
-      setRecipientEmail(selectedCompany.picEmail);
+    if (!selectedCompany) {
+      setRecipientOwnerName(p.recipientPlaceholderOwner);
+      setRecipientObjectName(p.recipientPlaceholderObject);
+      setDocOwner('');
+      setDocBuildingName('');
+      setDocAddress('');
+      setDocPrimaryNumber('');
+      setDocPrimaryDate('');
+      setDocPrimaryExpiry('');
+      setDocSecondaryNumberDate('');
+      setDocSecondaryExpiry('');
+      return;
     }
-  }, [selectedCompanyId]);
 
-  // Populate items when company changes or initialItem is passed
-  useEffect(() => {
-    if (!selectedCompany) return;
+    const compPermits = permits.filter(
+      (item) =>
+        item.companyId === selectedCompany.id ||
+        (item.nib && selectedCompany.nib && item.nib === selectedCompany.nib) ||
+        item.companyName.toLowerCase() === selectedCompany.name.toLowerCase()
+    );
 
-    // Filter relevant permits for this company that are expired or <60 days
-    const relevantPermits = permits
-      .filter((p) => p.companyId === selectedCompany.id || (p.nib && p.nib === selectedCompany.nib))
-      .filter((p) => calculateDaysRemaining(p.expiryDate) <= 60);
+    const firstWithAddress = compPermits.find((item) => item.address);
+    const firstWithUsage = compPermits.find((item) => item.usage);
 
-    // Filter relevant LKPM for this company that are Belum Lapor
-    const relevantLKPM = lkpmRecords
-      .filter((l) => l.companyId === selectedCompany.id || l.nib === selectedCompany.nib)
-      .filter((l) => l.status === 'Belum Lapor' || l.status === 'Perlu Perbaikan');
+    setRecipientOwnerName(selectedCompany.name);
+    setRecipientObjectName(firstWithUsage?.usage || selectedCompany.sector || p.recipientPlaceholderObject);
+    setRecipientEmail(selectedCompany.picEmail || 'andri.cimb@gmail.com');
 
-    const generatedItems: WarningLetterItem[] = [];
+    setDocOwner(selectedCompany.name);
+    setDocBuildingName(firstWithUsage?.usage || selectedCompany.sector || '');
+    setDocAddress(firstWithAddress?.address || selectedCompany.address || '');
 
-    relevantPermits.forEach((p) => {
-      const days = calculateDaysRemaining(p.expiryDate);
-      generatedItems.push({
-        itemType: 'PERMIT',
-        itemName: `Perizinan: ${p.permitName}`,
-        referenceNumber: p.documentNumber,
-        deadlineOrExpiry: p.expiryDate,
-        daysRemainingOrOverdue: days,
-        legalBasis: 'PP No. 5 Tahun 2021 tentang Penyelenggaraan Perizinan Berusaha Berbasis Risiko',
-        actionRequired: days < 0 
-          ? 'Dokumen telah KEDALUWARSA. Wajib melakukan perpanjangan izin dan mengajukan pembaruan ke instansi berwenang.'
-          : `Masa berlaku tersisa ${days} hari. Segera selesaikan persyaratan administrasi dan perpanjangan izin.`
-      });
-    });
-
-    relevantLKPM.forEach((l) => {
-      const days = calculateDaysRemaining(l.deadlineDate);
-      generatedItems.push({
-        itemType: 'LKPM',
-        itemName: `Kewajiban LKPM: Penyampaian ${l.period} ${l.year} (KBLI ${l.kbliCode})`,
-        referenceNumber: `OSS-LKPM-${l.kbliCode}-${l.period}`,
-        deadlineOrExpiry: l.deadlineDate,
-        daysRemainingOrOverdue: days,
-        legalBasis: 'Pasal 32 Peraturan BKPM No. 5 Tahun 2021',
-        actionRequired: 'Segera input realisasi investasi modal dan submit laporan pada portal oss.go.id.'
-      });
-    });
-
-    setSelectedItems(generatedItems);
-  }, [selectedCompanyId, permits, lkpmRecords]);
-
-  // Handle Presets
-  const applyPreset = (type: 'EXPIRED_PERMIT' | 'LKPM_OVERDUE' | 'FULL_COMPLIANCE' | 'DUAL_VIOLATION') => {
-    if (type === 'DUAL_VIOLATION') {
-      setLetterType('Surat Peringatan Tertulis Terpadu (Izin Kedaluwarsa & Keterlambatan LKPM)');
-      setUrgency('Sangat Segera / Mendesak');
-      setDeadlineDays(5);
-      setSubjectTitle('SURAT PERINGATAN RESMI TERPADU: KEDALUWARSA PERIZINAN BERUSAHA DAN KETERLAMBATAN PENYAMPAIAN LKPM BKPM');
-      setOpeningText('Merujuk pada hasil evaluasi komparasi kepatuhan terpadu berbasis Nomor Induk Berusaha (NIB) melalui Sistem Pengawasan Perizinan Berusaha Terintegrasi OSS-RBA, serta berdasarkan ketentuan perundang-undangan:');
-      setAdditionalNotes('Kelalaian ganda dalam menindaklanjuti perpanjangan perizinan berusaha dan pelaporan LKPM dalam batas waktu 5 (lima) hari kerja akan berakibat pada penerbitan sanksi administratif berjenjang, penangguhan hak akses akun OSS, pembekuan fasilitas kepabeanan, serta penghentian sementara operasional lini produksi.');
-    } else if (type === 'EXPIRED_PERMIT') {
-      setLetterType('Teguran Izin Kedaluwarsa');
-      setUrgency('Sangat Segera / Mendesak');
-      setDeadlineDays(5);
-      setSubjectTitle('SURAT TEGURAN RESMI: KEDALUWARSA DAN/ATAU MASA BERLAKU PERIZINAN BERUSAHA');
-    } else if (type === 'LKPM_OVERDUE') {
-      setLetterType('Surat Peringatan Tertulis I');
-      setUrgency('Segera');
-      setDeadlineDays(7);
-      setSubjectTitle('SURAT PERINGATAN TERTULIS I: KETERLAMBATAN PENYAMPAIAN LAPORAN KEGIATAN PENANAMAN MODAL (LKPM)');
+    if (templateMode === 'SLF_RKK') {
+      const slfPermit = compPermits.find((item) =>
+        /slf|laik fungsi/i.test(`${item.permitName} ${item.category}`)
+      );
+      const rkkPermit = compPermits.find((item) =>
+        /rkk|skk|kebakaran|damkar/i.test(`${item.permitName} ${item.category}`)
+      );
+      setDocPrimaryNumber(slfPermit?.documentNumber || '');
+      setDocPrimaryDate(slfPermit?.issuedDate ? formatIndonesianDate(slfPermit.issuedDate) : '');
+      setDocPrimaryExpiry(slfPermit?.expiryDate ? formatIndonesianDate(slfPermit.expiryDate) : '');
+      setDocSecondaryNumberDate(
+        rkkPermit
+          ? [
+              rkkPermit.documentNumber,
+              rkkPermit.issuedDate ? formatIndonesianDate(rkkPermit.issuedDate) : ''
+            ]
+              .filter(Boolean)
+              .join(' / ')
+          : ''
+      );
+      setDocSecondaryExpiry(rkkPermit?.expiryDate ? formatIndonesianDate(rkkPermit.expiryDate) : '');
     } else {
-      setLetterType('Surat Peringatan Terakhir');
-      setUrgency('Sangat Segera / Mendesak');
-      setDeadlineDays(3);
-      setSubjectTitle('SURAT PERINGATAN TERAKHIR: PEMBEKUAN HAK AKSES PERIZINAN & KEWAJIBAN LKPM');
+      const pbgPermit = compPermits.find((item) =>
+        /pbg|persetujuan bangunan/i.test(`${item.permitName} ${item.category}`)
+      );
+      const iprPermit = compPermits.find((item) =>
+        /ipr|reklame/i.test(`${item.permitName} ${item.category}`)
+      );
+      setDocPrimaryNumber(pbgPermit?.documentNumber || '');
+      setDocPrimaryDate(pbgPermit?.issuedDate ? formatIndonesianDate(pbgPermit.issuedDate) : '');
+      setDocPrimaryExpiry(pbgPermit?.expiryDate ? formatIndonesianDate(pbgPermit.expiryDate) : '');
+      setDocSecondaryNumberDate(
+        iprPermit
+          ? [
+              iprPermit.documentNumber,
+              iprPermit.issuedDate ? formatIndonesianDate(iprPermit.issuedDate) : ''
+            ]
+              .filter(Boolean)
+              .join(' / ')
+          : ''
+      );
+      setDocSecondaryExpiry(iprPermit?.expiryDate ? formatIndonesianDate(iprPermit.expiryDate) : '');
     }
+  }, [selectedCompanyId, templateMode, permits, companies]);
+
+  const formatDateDdMmYyyy = (isoDate: string): string => {
+    const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return isoDate;
+    return `${m[3]}-${m[2]}-${m[1]}`;
   };
 
-  // Add a new custom item to the violation table
-  const handleAddCustomItem = () => {
-    const newItem: WarningLetterItem = {
-      itemType: 'PERMIT',
-      itemName: 'Kewajiban Perizinan / Dokumen Baru',
-      referenceNumber: `REG-${Date.now().toString().slice(-6)}`,
-      deadlineOrExpiry: new Date().toISOString().split('T')[0],
-      daysRemainingOrOverdue: -1,
-      legalBasis: 'Peraturan Perundang-Undangan Terkait',
-      actionRequired: 'Segera lakukan penyelesaian kewajiban administrasi perizinan.'
-    };
-    setSelectedItems([...selectedItems, newItem]);
-  };
+  const buildDocumentRows = () => [
+    { label: 'Nama Pemilik/Pengelola', value: docOwner, setter: setDocOwner },
+    { label: 'Nama Bangunan', value: docBuildingName, setter: setDocBuildingName },
+    { label: 'Alamat Bangunan', value: docAddress, setter: setDocAddress },
+    { label: preset.primaryDocLabel, value: docPrimaryNumber, setter: setDocPrimaryNumber },
+    { label: preset.primaryDateLabel, value: docPrimaryDate, setter: setDocPrimaryDate },
+    { label: preset.primaryExpiryLabel, value: docPrimaryExpiry, setter: setDocPrimaryExpiry },
+    { label: preset.secondaryDocLabel, value: docSecondaryNumberDate, setter: setDocSecondaryNumberDate },
+    { label: preset.secondaryExpiryLabel, value: docSecondaryExpiry, setter: setDocSecondaryExpiry }
+  ];
 
-  // Update item in table
-  const handleUpdateItem = (index: number, field: keyof WarningLetterItem, value: any) => {
-    const updated = [...selectedItems];
-    updated[index] = { ...updated[index], [field]: value };
-    setSelectedItems(updated);
-  };
-
-  // Delete item in table
-  const handleDeleteItem = (index: number) => {
-    setSelectedItems(selectedItems.filter((_, i) => i !== index));
-  };
-
-  // Add legal basis
-  const handleAddLegalBasis = () => {
-    setLegalBases([...legalBases, 'Peraturan Terkait Kepatuhan Penyelenggaraan Perizinan Berusaha']);
-  };
-
-  // Update legal basis
-  const handleUpdateLegalBasis = (idx: number, text: string) => {
-    const updated = [...legalBases];
-    updated[idx] = text;
-    setLegalBases(updated);
-  };
-
-  // Delete legal basis
-  const handleDeleteLegalBasis = (idx: number) => {
-    setLegalBases(legalBases.filter((_, i) => i !== idx));
-  };
-
-  // Export Letter & Items to Excel (.xlsx)
   const handleExportLetterExcel = () => {
+    const rows = buildDocumentRows();
     const infoData = [
-      ['SURAT TEGURAN RESMI KEPATUHAN PERIZINAN & LKPM'],
+      ['SURAT PEMBERITAHUAN DAN PENGINGAT PERPANJANGAN PERIZINAN'],
+      ['Instansi', `${senderOrganization} - ${kopSubtitle} ${kopUnitCity}`],
       ['Nomor Surat', letterNumber],
-      ['Tanggal Surat', letterDate],
-      ['Sifat', urgency],
-      ['Perihal', subjectTitle],
-      ['Perusahaan', companyName],
-      ['NIB', companyNIB],
-      ['Alamat', companyAddress],
-      ['Penerima', `${recipientName} (${recipientRole})`],
-      ['Email PIC', recipientEmail],
-      ['Batas Waktu', `${deadlineDays} Hari Kerja`],
-      ['Penandatangan', `${signatoryName} (${signatoryTitle})`],
+      ['Tanggal Surat', `${letterCity}, ${formatDateDdMmYyyy(letterDate)}`],
+      ['Sifat', letterSifat],
+      ['Lampiran', letterAttachment || '-'],
+      ['Hal', subjectTitle],
+      ['Kepada Yth.', recipientOwnerName],
+      ['Objek Bangunan / Reklame', recipientObjectName],
       [],
-      ['RINCIAN BUTIR PELANGGARAN & TINDAKAN WAJIB:']
+      ['DATA DOKUMEN TERCATAT', 'KETERANGAN'],
+      ...rows.map((r) => [r.label, r.value || '-'])
     ];
 
-    const tableHeaders = ['No', 'Uraian Kewajiban / Dokumen', 'Nomor Registrasi / Izin', 'Batas Waktu / Kedaluwarsa', 'Status Sisa Hari', 'Tindakan Wajib', 'Dasar Hukum'];
-    const tableRows = selectedItems.map((item, idx) => [
-      idx + 1,
-      item.itemName,
-      item.referenceNumber,
-      item.deadlineOrExpiry,
-      item.daysRemainingOrOverdue < 0 ? `Terlambat ${Math.abs(item.daysRemainingOrOverdue)} Hari` : `Sisa ${item.daysRemainingOrOverdue} Hari`,
-      item.actionRequired,
-      item.legalBasis
-    ]);
-
-    const ws = XLSX.utils.aoa_to_sheet([...infoData, tableHeaders, ...tableRows]);
-    ws['!cols'] = [
-      { wch: 6 }, { wch: 35 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 45 }, { wch: 35 }
-    ];
-
+    const ws = XLSX.utils.aoa_to_sheet(infoData);
+    ws['!cols'] = [{ wch: 32 }, { wch: 52 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Rincian Surat Teguran');
-    XLSX.writeFile(wb, `Surat_Teguran_${letterNumber.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Surat Pemberitahuan');
+    XLSX.writeFile(
+      wb,
+      `Surat_${templateMode}_${(letterNumber || 'Draft').replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`
+    );
 
-    setToastMessage('Rincian Surat Teguran berhasil diekspor ke Microsoft Excel (.xlsx)!');
+    setToastMessage('Surat berhasil diekspor ke Microsoft Excel (.xlsx)!');
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -311,71 +369,63 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
     window.print();
   };
 
-  const handleSaveDraft = () => {
-    const newLetter: WarningLetter = {
+  const buildArchivePayload = (status: WarningLetter['status']): WarningLetter => {
+    const items: WarningLetterItem[] = [
+      {
+        itemType: 'PERMIT',
+        itemName: subjectTitle,
+        referenceNumber: docPrimaryNumber || docSecondaryNumberDate || letterNumber,
+        deadlineOrExpiry: letterDate,
+        daysRemainingOrOverdue: calculateDaysRemaining(letterDate),
+        legalBasis: 'Peraturan Pemerintah Nomor 16 Tahun 2021',
+        actionRequired: 'Pengurusan perpanjangan/pembaruan dokumen sebelum masa berlaku berakhir.'
+      }
+    ];
+
+    return {
       id: `letter-${Date.now()}`,
       letterNumber,
       letterDate,
-      type: letterType,
-      urgency,
+      type: 'Teguran Izin Kedaluwarsa',
+      urgency: letterSifat === 'Biasa' ? 'Biasa' : 'Sangat Segera / Mendesak',
       companyId: selectedCompany?.id || 'comp-custom',
-      companyName,
-      companyNIB,
-      companyAddress,
-      recipientName,
-      recipientRole,
+      companyName: docOwner || recipientOwnerName,
+      companyNIB: selectedCompany?.nib || '-',
+      companyAddress: docAddress || selectedCompany?.address || 'Jakarta Selatan',
+      recipientName: recipientOwnerName,
+      recipientRole: recipientObjectName,
       recipientEmail,
       subject: subjectTitle,
-      senderOrganization,
-      signatoryName,
-      signatoryTitle,
-      deadlineDays,
-      items: selectedItems,
-      additionalNotes,
+      senderOrganization: `${kopSubtitle} ${kopUnitCity}`,
+      signatoryName: signatoryLine1,
+      signatoryTitle: signatoryLine2,
+      deadlineDays: 7,
+      items,
+      additionalNotes: openingText,
       generatedAt: new Date().toISOString(),
-      status: 'Diterbitkan'
+      status
     };
+  };
 
-    onSaveLetter(newLetter);
-    setToastMessage('Surat Teguran resmi berhasil diterbitkan dan disimpan dalam arsip!');
+  const handleSaveDraft = () => {
+    onSaveLetter(buildArchivePayload('Diterbitkan'));
+    setToastMessage('Surat berhasil diterbitkan dan disimpan dalam arsip!');
     setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleSendEmail = () => {
-    const currentLetter: WarningLetter = {
-      id: `letter-${Date.now()}`,
-      letterNumber,
-      letterDate,
-      type: letterType,
-      urgency,
-      companyId: selectedCompany.id,
-      companyName,
-      companyNIB,
-      companyAddress,
-      recipientName,
-      recipientRole,
-      recipientEmail,
-      subject: `[RESMI] ${letterNumber} - ${letterType} Kepatuhan Perizinan & LKPM`,
-      senderOrganization,
-      signatoryName,
-      signatoryTitle,
-      deadlineDays,
-      items: selectedItems,
-      additionalNotes,
-      generatedAt: new Date().toISOString(),
-      status: 'Terkirim via Email'
-    };
-
-    onSendEmailWithLetter(currentLetter);
-    setToastMessage(`Salinan resmi Surat Teguran berhasil dikirimkan ke email ${recipientEmail}!`);
+    onSendEmailWithLetter(buildArchivePayload('Terkirim via Email'));
+    setToastMessage(`Salinan resmi surat berhasil dikirimkan ke email ${recipientEmail}!`);
     setTimeout(() => setToastMessage(null), 5000);
   };
+
+  const documentRows = buildDocumentRows();
 
   return (
     <div className="space-y-6">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-emerald-700 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-emerald-500 animate-slide-in">
+        <div className="fixed top-20 right-6 z-50 bg-emerald-700 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-emerald-500 animate-slide-in no-print">
           <CheckCircle2 className="w-5 h-5 text-emerald-200 shrink-0" />
           <span className="text-xs font-bold">{toastMessage}</span>
         </div>
@@ -387,7 +437,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
           <div>
             <p className="font-bold text-xs">Otorisasi Terbatas: Akun Petugas</p>
             <p className="text-xs text-amber-700 mt-0.5">
-              User Petugas bertugas untuk mengunggah dokumen Perizinan &amp; LKPM. Kewenangan mengedit, mencetak, dan mengirim Surat Teguran Resmi hanya dimiliki oleh <strong>User Koordinator</strong>.
+              Kewenangan mengedit, mencetak, dan mengirim Surat Resmi dimiliki oleh <strong>User Koordinator / Super Admin</strong>.
             </p>
           </div>
           <span className="px-2.5 py-1 rounded bg-amber-200 text-amber-900 text-xs font-bold shrink-0">
@@ -401,7 +451,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
           <div>
             <p className="font-bold text-xs">Mode Pemantauan: Akun Monitor</p>
             <p className="text-xs text-emerald-700 mt-0.5">
-              Anda sedang memantau arsip draf surat teguran. Pembuatan, revisi klausul, dan pengiriman surat dikelola oleh User Koordinator.
+              Anda sedang memantau pratinjau surat resmi UP. PMPTSP Kota Administrasi Jakarta Selatan.
             </p>
           </div>
           <span className="px-2.5 py-1 rounded bg-emerald-200 text-emerald-900 text-xs font-bold shrink-0">
@@ -416,22 +466,21 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
           <div className="flex items-center space-x-2">
             <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
               <FileWarning className="w-6 h-6 text-rose-600" />
-              <span>Surat Teguran Resmi (Dapat Diedit Langsung)</span>
+              <span>Surat Pemberitahuan &amp; Pengingat Perpanjangan</span>
             </h2>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-              Dokumen Hukum Resmi
+              Template Resmi UP. PMPTSP Jaksel
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             {currentUserRole === 'koordinator'
-              ? 'Anda dapat mengedit seluruh elemen surat secara langsung (Kop, Nomor, Tanggal, Tujuan, Tabel Pelanggaran, Sanksi, Tanda Tangan, dan Tembusan).'
-              : 'Pratinjau resmi surat teguran sesuai format baku perundang-undangan BKPM dan Kementerian terkait.'}
+              ? 'Format resmi Pemprov DKI Jakarta (SLF & RKK/SKK maupun PBG BR/IPR Reklame). Seluruh isi surat dan tabel dokumen dapat diedit langsung.'
+              : 'Pratinjau resmi surat pemberitahuan dan pengingat perpanjangan dokumen UP. PMPTSP Kota Administrasi Jakarta Selatan.'}
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center flex-wrap gap-2">
-          {/* Toggle Edit Mode Button - Koordinator only */}
           {currentUserRole === 'koordinator' && (
             <button
               onClick={() => setIsEditMode(!isEditMode)}
@@ -447,17 +496,15 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             </button>
           )}
 
-          {/* Export to Excel */}
           <button
             onClick={handleExportLetterExcel}
             className="px-3.5 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300 transition flex items-center space-x-1.5 shadow-sm"
-            title="Ekspor rincian dan butir surat teguran ke Microsoft Excel (.xlsx)"
+            title="Ekspor rincian surat ke Microsoft Excel (.xlsx)"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <span>Ekspor Excel (.xlsx)</span>
           </button>
 
-          {/* Save Draft - Koordinator only */}
           {currentUserRole === 'koordinator' && (
             <button
               onClick={handleSaveDraft}
@@ -468,7 +515,6 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             </button>
           )}
 
-          {/* Send Email - Koordinator only */}
           {currentUserRole === 'koordinator' && (
             <button
               onClick={handleSendEmail}
@@ -479,7 +525,6 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             </button>
           )}
 
-          {/* Print / PDF - Koordinator only */}
           {currentUserRole === 'koordinator' && (
             <button
               onClick={handlePrint}
@@ -492,52 +537,51 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
         </div>
       </div>
 
-      {/* Control Presets & Quick Selectors (hidden on print) */}
+      {/* Template & Company Selector Bar (hidden on print) */}
       <div className="bg-white rounded-xl p-4 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 no-print">
         <div className="flex items-center space-x-2">
           <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span className="text-xs font-bold text-slate-800">Pilih Preset &amp; Perusahaan:</span>
+          <span className="text-xs font-bold text-slate-800">Pilih Entitas / Pemilik:</span>
           <select
             value={selectedCompanyId}
             onChange={(e) => setSelectedCompanyId(e.target.value)}
-            className="text-xs p-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 bg-white"
+            className="text-xs p-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 bg-white max-w-xs"
           >
             {companies.length === 0 ? (
-              <option value="">(Belum ada perusahaan terdaftar)</option>
+              <option value="">(Gunakan Template Kosong / Isi Manual)</option>
             ) : (
               companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))
             )}
           </select>
         </div>
 
-        <div className="flex items-center space-x-1.5 flex-wrap">
-          <span className="text-xs text-slate-500 mr-1">Terapkan Preset:</span>
+        <div className="flex items-center space-x-2 flex-wrap">
+          <span className="text-xs text-slate-500 mr-1 font-medium">Jenis Template Surat:</span>
           <button
-            onClick={() => applyPreset('DUAL_VIOLATION')}
-            className="px-2.5 py-1 text-[11px] font-bold bg-rose-600 text-white hover:bg-rose-500 rounded border border-rose-700 shadow-sm transition flex items-center space-x-1"
+            type="button"
+            onClick={() => applyTemplateMode('SLF_RKK')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
+              templateMode === 'SLF_RKK'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+            }`}
           >
-            <FileWarning className="w-3.5 h-3.5" />
-            <span>🚨 SP Terpadu (Izin &amp; LKPM)</span>
+            1. Pengingat SLF &amp; RKK/SKK
           </button>
           <button
-            onClick={() => applyPreset('EXPIRED_PERMIT')}
-            className="px-2.5 py-1 text-[11px] font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-200 transition"
+            type="button"
+            onClick={() => applyTemplateMode('PBG_IPR')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
+              templateMode === 'PBG_IPR'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+            }`}
           >
-            Izin Expired
-          </button>
-          <button
-            onClick={() => applyPreset('LKPM_OVERDUE')}
-            className="px-2.5 py-1 text-[11px] font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 rounded border border-amber-200 transition"
-          >
-            SP1 LKPM
-          </button>
-          <button
-            onClick={() => applyPreset('FULL_COMPLIANCE')}
-            className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 rounded border border-slate-300 transition"
-          >
-            Peringatan Terakhir
+            2. Pengingat PBG BR / IPR Reklame
           </button>
         </div>
       </div>
@@ -548,7 +592,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
           <div className="flex items-center space-x-2">
             <Edit3 className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
-              <strong>Mode Edit Dokumen Aktif:</strong> Anda dapat langsung mengetik, mengubah nomor surat, mengedit tabel butir pelanggaran, menambah baris, atau menghapus item langsung di formulir surat di bawah.
+              <strong>Mode Edit Dokumen Aktif:</strong> Klik teks atau kolom tabel pada surat di bawah untuk mengubah nomor surat, tanggal, data pemilik/bangunan, nomor SLF/RKK/PBG/IPR, dan nama PIC.
             </span>
           </div>
           <button
@@ -560,506 +604,428 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
         </div>
       )}
 
-      {/* Official Printable Indonesian Legal Document Preview / In-Place Editor */}
+      {/* Official Printable Letter Paper (#surat-teguran-print) */}
       <div className="bg-slate-200 p-3 sm:p-8 rounded-2xl flex justify-center shadow-inner">
-        <div 
+        <div
           id="surat-teguran-print"
-          className="bg-white text-slate-900 shadow-2xl p-6 sm:p-12 max-w-[850px] w-full font-serif leading-relaxed text-sm relative border border-slate-300"
+          className="bg-white text-slate-950 shadow-2xl px-8 py-8 sm:px-14 sm:py-10 max-w-[820px] w-full font-sans text-[12.5px] leading-[1.45] relative border border-slate-300"
           style={{ minHeight: '1050px' }}
         >
-          {/* Watermark in background */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
-            <span className="text-7xl font-black rotate-[-30deg] tracking-widest text-slate-900 uppercase">
-              SURAT RESMI KEPATUHAN
-            </span>
-          </div>
-
-          {/* Letterhead (KOP SURAT RESMI INDONESIA) */}
-          <div className="text-center pb-4 relative">
-            <div className="flex items-center justify-center space-x-4 mb-2">
+          {/* KOP SURAT RESMI PEMPROV DKI JAKARTA */}
+          <div className="relative pb-1">
+            <div className="flex items-center gap-4">
               <img
                 src="/assets/aistudio/download-removebg-preview_688696e1.png"
                 alt="Logo Pemprov DKI Jakarta"
-                className="w-24 h-24 sm:w-28 sm:h-28 object-contain shrink-0"
+                className="w-20 h-20 sm:w-24 sm:h-24 object-contain shrink-0"
               />
-              <div className="text-center w-full max-w-xl">
+              <div className="flex-1 text-center">
                 {isEditMode ? (
-                  <div className="space-y-1 font-sans">
+                  <div className="space-y-1">
                     <input
                       type="text"
                       value={senderOrganization}
                       onChange={(e) => setSenderOrganization(e.target.value)}
-                      className="w-full text-center text-sm sm:text-base font-black tracking-wider uppercase border border-dashed border-amber-400 bg-amber-50/50 rounded px-2 py-0.5"
+                      className="w-full text-center text-[13px] sm:text-[14px] font-bold uppercase tracking-tight border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5"
                     />
                     <input
                       type="text"
                       value={kopSubtitle}
                       onChange={(e) => setKopSubtitle(e.target.value)}
-                      className="w-full text-center text-xs font-bold uppercase border border-dashed border-amber-400 bg-amber-50/50 rounded px-2 py-0.5"
+                      className="w-full text-center text-[13px] sm:text-[14px] font-bold uppercase tracking-tight border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={kopUnitCity}
+                      onChange={(e) => setKopUnitCity(e.target.value)}
+                      className="w-full text-center text-[13px] sm:text-[14px] font-bold uppercase tracking-tight border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5"
                     />
                     <input
                       type="text"
                       value={kopAddress}
                       onChange={(e) => setKopAddress(e.target.value)}
-                      className="w-full text-center text-[10px] text-slate-600 border border-dashed border-slate-300 rounded px-2 py-0.5"
-                    />
-                    <input
-                      type="text"
-                      value={kopContact}
-                      onChange={(e) => setKopContact(e.target.value)}
-                      className="w-full text-center text-[9px] text-slate-500 border border-dashed border-slate-300 rounded px-2 py-0.5"
+                      className="w-full text-center text-[11.5px] border border-dashed border-slate-300 rounded px-1.5 py-0.5"
                     />
                   </div>
                 ) : (
                   <>
-                    <h2 className="text-base sm:text-lg font-black tracking-wider uppercase font-sans text-slate-950">
+                    <h2 className="text-[13px] sm:text-[14.5px] font-bold uppercase leading-snug text-slate-950">
                       {senderOrganization}
                     </h2>
-                    <h3 className="text-xs sm:text-sm font-bold uppercase font-sans text-slate-800 tracking-wide">
+                    <h3 className="text-[13px] sm:text-[14.5px] font-bold uppercase leading-snug text-slate-950">
                       {kopSubtitle}
                     </h3>
-                    <p className="text-[11px] font-sans text-slate-600 mt-0.5">
-                      {kopAddress}
-                    </p>
-                    <p className="text-[10px] font-sans text-slate-500">
-                      {kopContact}
-                    </p>
+                    <h3 className="text-[13px] sm:text-[14.5px] font-bold uppercase leading-snug text-slate-950">
+                      {kopUnitCity}
+                    </h3>
+                    <p className="text-[11.5px] text-slate-900 mt-0.5">{kopAddress}</p>
                   </>
                 )}
               </div>
             </div>
 
-            {/* Double Border Line (Garis Ganda Khas Surat Resmi) */}
-            <div className="border-b-4 border-slate-900 my-2" />
-            <div className="border-b border-slate-900 -mt-1" />
-          </div>
-
-          {/* Metadata Surat: Nomor, Sifat, Lampiran, Hal, Tanggal */}
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-start font-sans text-xs gap-3">
-            <div className="space-y-1.5 w-full sm:w-2/3">
-              <div className="flex items-center">
-                <span className="w-20 font-semibold text-slate-700 shrink-0">Nomor</span>
-                <span className="font-semibold text-slate-700 mr-1">:</span>
-                {isEditMode ? (
-                  <input
-                    type="text"
-                    value={letterNumber}
-                    onChange={(e) => setLetterNumber(e.target.value)}
-                    className="font-mono font-bold text-slate-900 border border-dashed border-amber-400 bg-amber-50/50 rounded px-1.5 py-0.5 text-xs w-full max-w-xs"
-                  />
-                ) : (
-                  <span className="font-mono font-bold text-slate-900">{letterNumber}</span>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-20 font-semibold text-slate-700 shrink-0">Sifat</span>
-                <span className="font-semibold text-slate-700 mr-1">:</span>
-                {isEditMode ? (
-                  <select
-                    value={urgency}
-                    onChange={(e) => setUrgency(e.target.value as any)}
-                    className="font-bold text-rose-700 border border-dashed border-amber-400 bg-amber-50/50 rounded px-1 py-0.5 text-xs"
-                  >
-                    <option value="Sangat Segera / Mendesak">Sangat Segera / Mendesak</option>
-                    <option value="Segera">Segera</option>
-                    <option value="Biasa">Biasa</option>
-                  </select>
-                ) : (
-                  <span className="font-bold text-rose-700">{urgency}</span>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-20 font-semibold text-slate-700 shrink-0">Lampiran</span>
-                <span className="font-semibold text-slate-700 mr-1">:</span>
-                <span className="text-slate-800">1 (satu) Berkas Lembar Rincian Pelanggaran</span>
-              </div>
-
-              <div className="flex items-start">
-                <span className="w-20 font-semibold text-slate-700 shrink-0 mt-0.5">Perihal</span>
-                <span className="font-semibold text-slate-700 mr-1 mt-0.5">:</span>
-                {isEditMode ? (
-                  <textarea
-                    rows={2}
-                    value={subjectTitle}
-                    onChange={(e) => setSubjectTitle(e.target.value)}
-                    className="font-bold text-slate-950 uppercase tracking-tight border border-dashed border-amber-400 bg-amber-50/50 rounded px-1.5 py-0.5 text-xs w-full"
-                  />
-                ) : (
-                  <span className="font-bold text-slate-950 uppercase tracking-tight">
-                    {subjectTitle}
-                  </span>
-                )}
-              </div>
+            <div className="flex justify-end mt-1">
+              {isEditMode ? (
+                <input
+                  type="text"
+                  value={kopPostalCode}
+                  onChange={(e) => setKopPostalCode(e.target.value)}
+                  className="text-right text-[11px] font-medium border border-dashed border-slate-300 rounded px-1.5 py-0.5 w-36"
+                />
+              ) : (
+                <span className="text-[11px] font-medium text-slate-900">{kopPostalCode}</span>
+              )}
             </div>
 
-            <div className="text-left sm:text-right font-sans text-xs shrink-0">
+            {/* Garis Ganda Kop Surat */}
+            <div className="border-b-[3px] border-slate-950 mt-1" />
+            <div className="border-b border-slate-950 mt-[2px]" />
+          </div>
+
+          {/* Metadata Surat: Nomor, Sifat, Lampiran, Hal & Tanggal */}
+          <div className="mt-4 flex flex-col sm:flex-row justify-between items-start gap-3">
+            <table className="text-[12px] border-collapse">
+              <tbody>
+                <tr>
+                  <td className="pr-4 py-0.5 align-top w-20">Nomor</td>
+                  <td className="pr-2 py-0.5 align-top">:</td>
+                  <td className="py-0.5 align-top">
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={letterNumber}
+                        onChange={(e) => setLetterNumber(e.target.value)}
+                        className="border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] w-60"
+                      />
+                    ) : (
+                      <span>{letterNumber}</span>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="pr-4 py-0.5 align-top">Sifat</td>
+                  <td className="pr-2 py-0.5 align-top">:</td>
+                  <td className="py-0.5 align-top">
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={letterSifat}
+                        onChange={(e) => setLetterSifat(e.target.value)}
+                        className="border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] w-40"
+                      />
+                    ) : (
+                      <span>{letterSifat}</span>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="pr-4 py-0.5 align-top">Lampiran</td>
+                  <td className="pr-2 py-0.5 align-top">:</td>
+                  <td className="py-0.5 align-top">
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={letterAttachment}
+                        onChange={(e) => setLetterAttachment(e.target.value)}
+                        placeholder="-"
+                        className="border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[12px] w-40"
+                      />
+                    ) : (
+                      <span>{letterAttachment}</span>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="pr-4 py-0.5 align-top">Hal</td>
+                  <td className="pr-2 py-0.5 align-top">:</td>
+                  <td className="py-0.5 align-top font-bold">
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={subjectTitle}
+                        onChange={(e) => setSubjectTitle(e.target.value)}
+                        className="font-bold border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] w-80"
+                      />
+                    ) : (
+                      <span>{subjectTitle}</span>
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="text-[12px] shrink-0 sm:pr-4">
               {isEditMode ? (
-                <div className="flex items-center space-x-1 sm:justify-end">
+                <div className="flex items-center space-x-1">
                   <input
                     type="text"
                     value={letterCity}
                     onChange={(e) => setLetterCity(e.target.value)}
-                    className="w-24 text-right border border-dashed border-slate-300 rounded px-1 py-0.5 text-xs font-semibold"
+                    className="w-20 text-right border border-dashed border-slate-300 rounded px-1 py-0.5 text-[12px]"
                   />
                   <span>,</span>
                   <input
                     type="date"
                     value={letterDate}
                     onChange={(e) => setLetterDate(e.target.value)}
-                    className="border border-dashed border-amber-400 bg-amber-50/50 rounded px-1 py-0.5 text-xs font-bold"
+                    className="border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px]"
                   />
                 </div>
               ) : (
-                <p className="font-semibold text-slate-700">{letterCity}, {formatIndonesianDate(letterDate)}</p>
+                <span>
+                  {letterCity}, {formatIndonesianDate(letterDate)}
+                </span>
               )}
             </div>
           </div>
 
-          {/* Tujuan Surat (Kepada Yth) */}
-          <div className="mt-6 font-sans text-xs space-y-1">
-            <p className="font-normal text-slate-700">Kepada Yang Terhormat,</p>
+          {/* Tujuan Surat (Yth.) */}
+          <div className="mt-5 text-[12px] space-y-0.5">
+            <p>Yth.</p>
             {isEditMode ? (
-              <div className="space-y-1.5 max-w-md pt-1">
+              <div className="space-y-1 max-w-md pt-0.5">
                 <input
                   type="text"
-                  value={recipientRole}
-                  onChange={(e) => setRecipientRole(e.target.value)}
-                  placeholder="Jabatan Penerima"
-                  className="w-full font-bold text-slate-900 text-xs border border-dashed border-amber-400 bg-amber-50/50 rounded px-1.5 py-0.5"
+                  value={recipientOwnerName}
+                  onChange={(e) => setRecipientOwnerName(e.target.value)}
+                  placeholder={preset.recipientPlaceholderOwner}
+                  className="w-full font-bold border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px]"
                 />
                 <input
                   type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Nama Perusahaan"
-                  className="w-full font-bold text-slate-900 text-sm border border-dashed border-amber-400 bg-amber-50/50 rounded px-1.5 py-0.5"
+                  value={recipientObjectName}
+                  onChange={(e) => setRecipientObjectName(e.target.value)}
+                  placeholder={preset.recipientPlaceholderObject}
+                  className="w-full border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px]"
                 />
-                <div className="flex items-center space-x-1">
-                  <span className="text-slate-700 font-mono text-xs">NIB:</span>
-                  <input
-                    type="text"
-                    value={companyNIB}
-                    onChange={(e) => setCompanyNIB(e.target.value)}
-                    placeholder="Nomor Induk Berusaha"
-                    className="w-full font-mono text-slate-800 text-xs border border-dashed border-slate-300 rounded px-1.5 py-0.5"
-                  />
-                </div>
+                <p>di</p>
                 <input
                   type="text"
-                  value={companyAddress}
-                  onChange={(e) => setCompanyAddress(e.target.value)}
-                  placeholder="Alamat Perusahaan"
-                  className="w-full text-slate-600 text-xs border border-dashed border-slate-300 rounded px-1.5 py-0.5"
+                  value={recipientLocation}
+                  onChange={(e) => setRecipientLocation(e.target.value)}
+                  className="w-44 border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[12px]"
                 />
               </div>
             ) : (
               <>
-                <p className="font-bold text-slate-900 text-sm">{recipientRole}</p>
-                <p className="font-bold text-slate-900 text-sm">{companyName}</p>
-                <p className="text-slate-700 font-mono">NIB: {companyNIB}</p>
-                <p className="text-slate-600 max-w-md">{companyAddress}</p>
+                <p className="font-bold">{recipientOwnerName}</p>
+                <p>{recipientObjectName}</p>
+                <p>di</p>
+                <p>{recipientLocation}</p>
               </>
             )}
-            <p className="text-slate-700 pt-0.5">Di Tempat</p>
           </div>
 
-          {/* Isi Surat */}
-          <div className="mt-6 space-y-3.5 text-justify text-xs font-sans text-slate-800 leading-relaxed">
-            <p>Dengan hormat,</p>
+          {/* Paragraf Pembuka */}
+          <div className="mt-4 text-justify text-[12px] leading-[1.5]">
+            {isEditMode ? (
+              <textarea
+                rows={4}
+                value={openingText}
+                onChange={(e) => setOpeningText(e.target.value)}
+                className="w-full indent-8 border border-dashed border-amber-400 bg-amber-50/40 rounded p-1.5 text-[12px] leading-[1.5]"
+              />
+            ) : (
+              <p className="indent-8">{openingText}</p>
+            )}
+          </div>
+
+          {/* Tabel Data Dokumen Tercatat */}
+          <div className="mt-3 text-[12px]">
+            <p className="mb-1.5">Data dokumen yang tercatat adalah sebagai berikut:</p>
+            <table className="w-full border-collapse border border-slate-900 text-[11.5px]">
+              <tbody>
+                {documentRows.map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="border border-slate-900 px-2.5 py-1 font-bold w-[42%] align-middle">
+                      {row.label}
+                    </td>
+                    <td className="border border-slate-900 px-2.5 py-1 align-middle">
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={row.value}
+                          onChange={(e) => row.setter(e.target.value)}
+                          placeholder="[................................................]"
+                          className="w-full border border-dashed border-amber-400/80 bg-amber-50/30 rounded px-1.5 py-0.5 text-[11.5px]"
+                        />
+                      ) : (
+                        <span>{row.value || '[................................................]'}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paragraf Pengingat & Poin-Poin */}
+          <div className="mt-4 space-y-2.5 text-justify text-[12px] leading-[1.5]">
+            {isEditMode ? (
+              <textarea
+                rows={3}
+                value={reminderLeadText}
+                onChange={(e) => setReminderLeadText(e.target.value)}
+                className="w-full border border-dashed border-amber-400 bg-amber-50/40 rounded p-1.5 text-[12px] leading-[1.5]"
+              />
+            ) : (
+              <p>{reminderLeadText}</p>
+            )}
+
+            <ul className="list-disc pl-8 space-y-1.5">
+              <li>
+                {isEditMode ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    <input
+                      type="text"
+                      value={bullet1Bold}
+                      onChange={(e) => setBullet1Bold(e.target.value)}
+                      className="font-bold border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                    <input
+                      type="text"
+                      value={bullet1Rest}
+                      onChange={(e) => setBullet1Rest(e.target.value)}
+                      className="border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <strong>{bullet1Bold}</strong>
+                    {bullet1Rest}
+                  </>
+                )}
+              </li>
+              <li>
+                {isEditMode ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    <input
+                      type="text"
+                      value={bullet2Bold}
+                      onChange={(e) => setBullet2Bold(e.target.value)}
+                      className="font-bold border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                    <input
+                      type="text"
+                      value={bullet2Rest}
+                      onChange={(e) => setBullet2Rest(e.target.value)}
+                      className="border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <strong>{bullet2Bold}</strong>
+                    {bullet2Rest}
+                  </>
+                )}
+              </li>
+              <li>
+                {isEditMode ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    <input
+                      type="text"
+                      value={bullet3Bold}
+                      onChange={(e) => setBullet3Bold(e.target.value)}
+                      className="font-bold border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                    <input
+                      type="text"
+                      value={bullet3Rest}
+                      onChange={(e) => setBullet3Rest(e.target.value)}
+                      className="border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <strong>{bullet3Bold}</strong>
+                    {bullet3Rest}
+                  </>
+                )}
+              </li>
+            </ul>
 
             {isEditMode ? (
               <textarea
                 rows={2}
-                value={openingText}
-                onChange={(e) => setOpeningText(e.target.value)}
-                className="w-full border border-dashed border-amber-400 bg-amber-50/50 rounded p-1.5 text-xs leading-relaxed"
+                value={supportText}
+                onChange={(e) => setSupportText(e.target.value)}
+                className="w-full border border-dashed border-slate-300 rounded p-1.5 text-[12px] leading-[1.5]"
               />
             ) : (
-              <p>{openingText}</p>
+              <p>{supportText}</p>
             )}
 
-            {/* Dasar Hukum List (Editable) */}
-            <div className="space-y-1">
-              <ol className="list-decimal list-outside pl-5 space-y-1 text-[11px] text-slate-700">
-                {legalBases.map((law, idx) => (
-                  <li key={idx}>
-                    {isEditMode ? (
-                      <div className="flex items-center space-x-1">
-                        <input
-                          type="text"
-                          value={law}
-                          onChange={(e) => handleUpdateLegalBasis(idx, e.target.value)}
-                          className="w-full border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11px]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLegalBasis(idx)}
-                          className="text-rose-500 hover:text-rose-700 p-0.5 text-xs no-print"
-                          title="Hapus dasar hukum ini"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <span><strong>{law}</strong>;</span>
-                    )}
-                  </li>
-                ))}
-              </ol>
-
-              {isEditMode && (
-                <button
-                  type="button"
-                  onClick={handleAddLegalBasis}
-                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 mt-1 pl-5 no-print"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Dasar Hukum Lain</span>
-                </button>
-              )}
-            </div>
-
             <p>
-              Dengan ini disampaikan bahwa <strong>{companyName}</strong> terbukti belum memenuhi kewajiban perizinan berusaha dan/atau kepatuhan pelaporan investasi sebagaimana dirinci dalam tabel berikut:
-            </p>
-
-            {/* Table of Violations (Fully Editable in Edit Mode) */}
-            <div className="my-3 border border-slate-300 rounded overflow-hidden">
-              <table className="w-full text-left text-[11px] border-collapse font-sans">
-                <thead className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold">
-                  <tr>
-                    <th className="p-2 border-r border-slate-300 w-8 text-center">No</th>
-                    <th className="p-2 border-r border-slate-300">Uraian Kewajiban / Dokumen</th>
-                    <th className="p-2 border-r border-slate-300">Nomor Registrasi / Izin</th>
-                    <th className="p-2 border-r border-slate-300 text-center">Batas Waktu</th>
-                    <th className="p-2 border-r border-slate-300">Tindakan Wajib</th>
-                    {isEditMode && <th className="p-2 text-center w-12 no-print">Aksi</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {selectedItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={isEditMode ? 6 : 5} className="p-4 text-center text-slate-400 italic">
-                        Belum ada butir pelanggaran. Klik tombol "+ Tambah Baris Pelanggaran Baru" di bawah untuk menambahkan.
-                      </td>
-                    </tr>
-                  ) : (
-                    selectedItems.map((item, idx) => (
-                      <tr key={idx} className={item.daysRemainingOrOverdue < 0 ? 'bg-rose-50/40' : ''}>
-                        <td className="p-2 border-r border-slate-300 text-center font-bold">{idx + 1}</td>
-
-                        {/* Uraian */}
-                        <td className="p-2 border-r border-slate-300">
-                          {isEditMode ? (
-                            <textarea
-                              rows={2}
-                              value={item.itemName}
-                              onChange={(e) => handleUpdateItem(idx, 'itemName', e.target.value)}
-                              className="w-full border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[11px] font-semibold text-slate-900"
-                            />
-                          ) : (
-                            <span className="font-semibold text-slate-900">{item.itemName}</span>
-                          )}
-                        </td>
-
-                        {/* Nomor Registrasi */}
-                        <td className="p-2 border-r border-slate-300 font-mono text-[10px]">
-                          {isEditMode ? (
-                            <input
-                              type="text"
-                              value={item.referenceNumber}
-                              onChange={(e) => handleUpdateItem(idx, 'referenceNumber', e.target.value)}
-                              className="w-full border border-dashed border-slate-300 rounded px-1 py-0.5 text-[10px] font-mono"
-                            />
-                          ) : (
-                            <span>{item.referenceNumber}</span>
-                          )}
-                        </td>
-
-                        {/* Batas Waktu */}
-                        <td className="p-2 border-r border-slate-300 text-center whitespace-nowrap">
-                          {isEditMode ? (
-                            <div className="space-y-1">
-                              <input
-                                type="date"
-                                value={item.deadlineOrExpiry}
-                                onChange={(e) => {
-                                  const d = calculateDaysRemaining(e.target.value);
-                                  handleUpdateItem(idx, 'deadlineOrExpiry', e.target.value);
-                                  handleUpdateItem(idx, 'daysRemainingOrOverdue', d);
-                                }}
-                                className="border border-dashed border-amber-400 bg-amber-50/40 rounded px-1 py-0.5 text-[10px] font-bold text-rose-700"
-                              />
-                              <div className="text-[9px] text-slate-500">
-                                {item.daysRemainingOrOverdue < 0 ? `(Lewat ${Math.abs(item.daysRemainingOrOverdue)}h)` : `(Sisa ${item.daysRemainingOrOverdue}h)`}
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <span className="font-bold text-rose-700">
-                                {formatIndonesianDate(item.deadlineOrExpiry)}
-                              </span>
-                              <div className="text-[10px] text-slate-500">
-                                {item.daysRemainingOrOverdue < 0 ? `(Terlambat ${Math.abs(item.daysRemainingOrOverdue)} Hari)` : `(Sisa ${item.daysRemainingOrOverdue} Hari)`}
-                              </div>
-                            </>
-                          )}
-                        </td>
-
-                        {/* Tindakan Wajib */}
-                        <td className="p-2 border-r border-slate-300 text-[10px] text-slate-700">
-                          {isEditMode ? (
-                            <textarea
-                              rows={2}
-                              value={item.actionRequired}
-                              onChange={(e) => handleUpdateItem(idx, 'actionRequired', e.target.value)}
-                              className="w-full border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[10px]"
-                            />
-                          ) : (
-                            <span>{item.actionRequired}</span>
-                          )}
-                        </td>
-
-                        {/* Aksi Hapus Baris */}
-                        {isEditMode && (
-                          <td className="p-2 text-center no-print">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteItem(idx)}
-                              className="text-slate-400 hover:text-rose-600 p-1"
-                              title="Hapus baris ini"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Add Custom Violation Row Button */}
-            {isEditMode && (
-              <div className="flex justify-between items-center py-1 no-print">
-                <button
-                  type="button"
-                  onClick={handleAddCustomItem}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition flex items-center space-x-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Baris Pelanggaran / Kewajiban Baru</span>
-                </button>
-                <span className="text-[11px] text-slate-500 italic">
-                  Tabel ini dapat diekspor langsung ke Excel (.xlsx) melalui tombol di atas.
-                </span>
-              </div>
-            )}
-
-            {/* Paragraf Batas Waktu */}
-            <p>
-              Sehubungan dengan hal tersebut di atas, Saudara diminta untuk segera menyelesaikan kewajiban tersebut dan mengunggah bukti pemenuhan melalui portal resmi dalam jangka waktu paling lambat{' '}
+              Untuk informasi lebih lanjut mengenai persyaratan dan mekanisme pengurusan {preset.contactScope}, Saudara dapat memanfaatkan kanal pelayanan DPMPTSP Provinsi DKI Jakarta atau PIC pada UP. PMPTSP Kota Administrasi Jakarta Selatan Sdr.{' '}
               {isEditMode ? (
-                <span className="inline-flex items-center space-x-1 mx-1">
-                  <input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={deadlineDays}
-                    onChange={(e) => setDeadlineDays(Number(e.target.value))}
-                    className="w-14 border border-dashed border-amber-400 bg-amber-50/50 rounded px-1 py-0.5 text-xs font-bold text-slate-900 text-center"
-                  />
-                  <strong>hari kerja</strong>
-                </span>
-              ) : (
-                <strong>{deadlineDays} ({deadlineDays === 5 ? 'lima' : deadlineDays === 7 ? 'tujuh' : deadlineDays}) hari kerja</strong>
-              )}{' '}
-              terhitung sejak diterbitkannya surat peringatan ini.
-            </p>
-
-            {/* TTD Kepala Unit (Di atas Peringatan Sanksi Administratif) */}
-            <div className="flex justify-end pt-4 pb-2 font-sans">
-              <div className="text-center min-w-[240px]">
-                {isEditMode ? (
-                  <input
-                    type="text"
-                    value={signatoryTitle}
-                    onChange={(e) => setSignatoryTitle(e.target.value)}
-                    placeholder="Jabatan (mis. Kepala Unit)"
-                    className="w-full text-center text-xs font-bold text-slate-900 border border-dashed border-amber-400 bg-amber-50/50 rounded px-2 py-0.5 mb-12"
-                  />
-                ) : (
-                  <p className="text-xs font-bold text-slate-900 mb-14">
-                    {signatoryTitle}
-                  </p>
-                )}
-
-                <div className="border-b border-slate-900 w-52 mx-auto my-1" />
-
-                {isEditMode ? (
-                  <div className="space-y-1">
-                    <input
-                      type="text"
-                      value={signatoryName}
-                      onChange={(e) => setSignatoryName(e.target.value)}
-                      placeholder="Nama Kepala Unit"
-                      className="w-full text-center text-xs font-bold text-slate-950 border border-dashed border-amber-400 bg-amber-50/50 rounded px-2 py-0.5"
-                    />
-                    <div className="flex items-center justify-center space-x-1">
-                      <span className="text-[10px] text-slate-600 font-mono">NIP.</span>
-                      <input
-                        type="text"
-                        value={signatoryNIP}
-                        onChange={(e) => setSignatoryNIP(e.target.value)}
-                        placeholder="NIP Kepala Unit"
-                        className="text-center text-[10px] text-slate-600 font-mono border border-dashed border-slate-300 rounded px-1.5 py-0.5 w-40"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xs font-bold text-slate-950">{signatoryName}</p>
-                    <p className="text-[10px] text-slate-600 font-mono">NIP. {signatoryNIP}</p>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Box Peringatan Sanksi (Editable) */}
-            <div className="p-2.5 bg-rose-50 border-l-4 border-rose-600 rounded-r text-[11px] text-rose-950 my-2">
-              <strong>PERINGATAN SANKSI ADMINISTRATIF:</strong><br />
-              {isEditMode ? (
-                <textarea
-                  rows={2}
-                  value={additionalNotes}
-                  onChange={(e) => setAdditionalNotes(e.target.value)}
-                  className="w-full border border-dashed border-rose-300 bg-white/80 rounded p-1.5 text-[11px] mt-1"
+                <input
+                  type="text"
+                  value={picOfficerName}
+                  onChange={(e) => setPicOfficerName(e.target.value)}
+                  className="inline-block w-36 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-semibold"
                 />
               ) : (
-                <span>{additionalNotes}</span>
+                <span>{picOfficerName}</span>
               )}
-            </div>
+              .
+            </p>
 
-            {/* Penutup (Editable) */}
             {isEditMode ? (
               <textarea
                 rows={2}
                 value={closingText}
                 onChange={(e) => setClosingText(e.target.value)}
-                className="w-full border border-dashed border-amber-400 bg-amber-50/50 rounded p-1.5 text-xs"
+                className="w-full border border-dashed border-amber-400 bg-amber-50/40 rounded p-1.5 text-[12px] leading-[1.5]"
               />
             ) : (
               <p>{closingText}</p>
             )}
           </div>
 
-          {/* Tembusan (Carbon Copy - Editable) */}
-          <div className="mt-8 pt-3 border-t border-slate-200 text-[10px] text-slate-500 font-sans">
-            <p className="font-bold text-slate-700 mb-0.5">Tembusan disampaikan kepada Yth.:</p>
-            <ol className="list-decimal list-outside pl-4 space-y-0.5">
+          {/* Blok TTD Kepala Unit Pengelola PMPTSP */}
+          <div className="mt-7 flex justify-end text-[12px]">
+            <div className="text-center min-w-[270px]">
+              {isEditMode ? (
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    value={signatoryLine1}
+                    onChange={(e) => setSignatoryLine1(e.target.value)}
+                    className="w-full text-center font-bold uppercase border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px]"
+                  />
+                  <input
+                    type="text"
+                    value={signatoryLine2}
+                    onChange={(e) => setSignatoryLine2(e.target.value)}
+                    className="w-full text-center font-bold uppercase border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px]"
+                  />
+                </div>
+              ) : (
+                <>
+                  <p className="font-bold uppercase leading-snug">{signatoryLine1}</p>
+                  <p className="font-bold uppercase leading-snug">{signatoryLine2}</p>
+                </>
+              )}
+
+              <div className="h-10 flex items-end justify-end pr-4">
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={signatoryBadge}
+                    onChange={(e) => setSignatoryBadge(e.target.value)}
+                    className="w-20 text-right border border-dashed border-slate-300 rounded px-1 py-0.5 text-[11px]"
+                  />
+                ) : (
+                  <span className="text-[11px]">{signatoryBadge}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tembusan */}
+          <div className="mt-4 text-[11.5px]">
+            <p className="mb-0.5">Tembusan:</p>
+            <ol className="list-decimal list-outside pl-5 space-y-0.5">
               {copies.map((copyItem, i) => (
                 <li key={i}>
                   {isEditMode ? (
@@ -1072,7 +1038,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                           updated[i] = e.target.value;
                           setCopies(updated);
                         }}
-                        className="w-full border border-dashed border-slate-300 rounded px-1.5 py-0.2 text-[10px]"
+                        className="w-full max-w-md border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
                       />
                       <button
                         type="button"
@@ -1091,8 +1057,8 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             {isEditMode && (
               <button
                 type="button"
-                onClick={() => setCopies([...copies, 'Pejabat Terkait Lainnya'])}
-                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 mt-1 pl-4 no-print"
+                onClick={() => setCopies([...copies, 'Instansi Terkait Lainnya'])}
+                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 mt-1 pl-5 no-print"
               >
                 <Plus className="w-3 h-3" />
                 <span>Tambah Tembusan</span>
