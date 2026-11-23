@@ -22,7 +22,8 @@ import { Permit, PermitCategory, PermitStatus, Company, UserRole, FollowUpStatus
 import { 
   calculateDaysRemaining, 
   getPermitStatusBadge, 
-  formatIndonesianDate 
+  formatIndonesianDate,
+  formatCompanyOptionLabel
 } from '../utils/helpers';
 import * as XLSX from 'xlsx';
 import { BulkUploadPermitsModal } from './BulkUploadPermitsModal';
@@ -304,7 +305,7 @@ export const PermitsManager: React.FC<PermitsManagerProps> = ({
             >
               <option value="all">Semua Entitas Perusahaan</option>
               {companies.map((comp) => (
-                <option key={comp.id} value={comp.id}>{comp.name}</option>
+                <option key={comp.id} value={comp.id}>{formatCompanyOptionLabel(comp)}</option>
               ))}
             </select>
           </div>
@@ -578,7 +579,7 @@ export const PermitsManager: React.FC<PermitsManagerProps> = ({
                     className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white"
                   >
                     {companies.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{formatCompanyOptionLabel(c)}</option>
                     ))}
                   </select>
                 </div>

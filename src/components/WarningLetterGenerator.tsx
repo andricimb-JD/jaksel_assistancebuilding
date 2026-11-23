@@ -13,7 +13,14 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { WarningLetter, WarningLetterItem, Permit, LKPMRecord, Company, UserRole } from '../types';
-import { formatIndonesianDate, calculateDaysRemaining } from '../utils/helpers';
+import {
+  formatIndonesianDate,
+  calculateDaysRemaining,
+  isSameCompanyEntity,
+  isSameAddress,
+  normalizeAddress,
+  formatCompanyOptionLabel
+} from '../utils/helpers';
 
 type LetterTemplateMode = 'SLF_RKK' | 'PBG_IPR';
 
@@ -23,6 +30,7 @@ interface WarningLetterGeneratorProps {
   lkpmRecords: LKPMRecord[];
   savedLetters: WarningLetter[];
   currentUserRole?: UserRole;
+  currentUserName?: string;
   initialItem?: { type: 'PERMIT' | 'LKPM' | 'DUAL_VIOLATION'; record: any } | null;
   onSaveLetter: (letter: WarningLetter) => void;
   onSendEmailWithLetter: (letter: WarningLetter) => void;
@@ -110,6 +118,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   lkpmRecords: _lkpmRecords,
   savedLetters: _savedLetters,
   currentUserRole = 'koordinator',
+  currentUserName = '',
   initialItem,
   onSaveLetter,
   onSendEmailWithLetter
@@ -174,7 +183,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   const [bullet3Bold, setBullet3Bold] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet3Bold);
   const [bullet3Rest, setBullet3Rest] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet3Rest);
   const [supportText, setSupportText] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.supportText);
-  const [picOfficerName, setPicOfficerName] = useState<string>('XXX');
+  const [picOfficerName, setPicOfficerName] = useState<string>(currentUserName || 'Petugas PTSP');
   const [closingText, setClosingText] = useState<string>(
     'Demikian pemberitahuan ini disampaikan untuk menjadi perhatian dan dapat ditindaklanjuti. Atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.'
   );
@@ -182,7 +191,14 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   // Tanda Tangan Kepala Unit Pengelola PMPTSP
   const [signatoryLine1, setSignatoryLine1] = useState<string>('KEPALA UNIT PENGELOLA PMPTSP');
   const [signatoryLine2, setSignatoryLine2] = useState<string>('KOTA ADMINISTRASI JAKARTA SELATAN');
-  const [signatoryBadge, setSignatoryBadge] = useState<string>('TTE');
+  const [signatoryName, setSignatoryName] = useState<string>('MARIO WIBOWO');
+  const [signatoryNip, setSignatoryNip] = useState<string>('NIP 198703252006021001');
+
+  useEffect(() => {
+    if (currentUserName) {
+      setPicOfficerName(currentUserName);
+    }
+  }, [currentUserName]);
 
   // Tembusan
   const [copies, setCopies] = useState<string[]>([
@@ -257,9 +273,12 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
 
     const compPermits = permits.filter(
       (item) =>
-        item.companyId === selectedCompany.id ||
-        (item.nib && selectedCompany.nib && item.nib === selectedCompany.nib) ||
-        item.companyName.toLowerCase() === selectedCompany.name.toLowerCase()
+        (item.companyId === selectedCompany.id &&
+          (!normalizeAddress(item.address) || isSameAddress(item.address, selectedCompany.address))) ||
+        isSameCompanyEntity(
+          { name: item.companyName, address: item.address, nib: item.nib },
+          selectedCompany
+        )
     );
 
     const firstWithAddress = compPermits.find((item) => item.address);
@@ -397,8 +416,8 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       recipientEmail,
       subject: subjectTitle,
       senderOrganization: `${kopSubtitle} ${kopUnitCity}`,
-      signatoryName: signatoryLine1,
-      signatoryTitle: signatoryLine2,
+      signatoryName: `${signatoryName} (${signatoryNip})`,
+      signatoryTitle: `${signatoryLine1} ${signatoryLine2}`,
       deadlineDays: 7,
       items,
       additionalNotes: openingText,
@@ -552,7 +571,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             ) : (
               companies.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {formatCompanyOptionLabel(c)}
                 </option>
               ))
             )}
@@ -617,7 +636,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
               <img
                 src="/assets/aistudio/download-removebg-preview_688696e1.png"
                 alt="Logo Pemprov DKI Jakarta"
-                className="w-20 h-20 sm:w-24 sm:h-24 object-contain shrink-0"
+                className="w-28 h-28 sm:w-32 sm:h-32 object-contain shrink-0"
               />
               <div className="flex-1 text-center">
                 {isEditMode ? (
@@ -962,11 +981,20 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                   type="text"
                   value={picOfficerName}
                   onChange={(e) => setPicOfficerName(e.target.value)}
-                  className="inline-block w-36 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-semibold"
+                  className="inline-block w-48 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-semibold"
                 />
               ) : (
-                <span>{picOfficerName}</span>
+                <span className="font-semibold">{picOfficerName}</span>
               )}
+              {' '}atau dapat mengajukan permohonan pendampingan dengan mengunjungi website{' '}
+              <a
+                href="https://asistara.online/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-sky-700 print:text-slate-950 font-medium"
+              >
+                https://asistara.online/
+              </a>
               .
             </p>
 
@@ -1007,16 +1035,27 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                 </>
               )}
 
-              <div className="h-10 flex items-end justify-end pr-4">
+              <div className="mt-16 pt-2 text-center space-y-0.5">
                 {isEditMode ? (
-                  <input
-                    type="text"
-                    value={signatoryBadge}
-                    onChange={(e) => setSignatoryBadge(e.target.value)}
-                    className="w-20 text-right border border-dashed border-slate-300 rounded px-1 py-0.5 text-[11px]"
-                  />
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={signatoryName}
+                      onChange={(e) => setSignatoryName(e.target.value)}
+                      className="w-full text-center font-bold border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px]"
+                    />
+                    <input
+                      type="text"
+                      value={signatoryNip}
+                      onChange={(e) => setSignatoryNip(e.target.value)}
+                      className="w-full text-center border border-dashed border-slate-300 rounded px-1.5 py-0.5 text-[11.5px]"
+                    />
+                  </div>
                 ) : (
-                  <span className="text-[11px]">{signatoryBadge}</span>
+                  <>
+                    <p className="font-bold leading-snug">{signatoryName}</p>
+                    <p className="text-[11.5px] leading-snug">{signatoryNip}</p>
+                  </>
                 )}
               </div>
             </div>

@@ -613,40 +613,125 @@ export const isCompanyNameMatch = (name1: string, name2: string): boolean => {
   return false;
 };
 
+/**
+ * Normalizes a company/project address for entity comparison.
+ * Treats empty or generic placeholder addresses ('-', 'indonesia', 'dki jakarta') as empty string.
+ */
+export const normalizeAddress = (rawAddress?: string): string => {
+  if (!rawAddress) return '';
+  const cleaned = rawAddress
+    .toLowerCase()
+    .replace(/[.,;/()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned || cleaned === '-' || cleaned === 'indonesia' || cleaned === 'dki jakarta') {
+    return '';
+  }
+  return cleaned;
+};
+
+/**
+ * Checks if two addresses represent the same physical location.
+ * If only one record provides a real address and the other does not, returns false
+ * so distinct-address records are not categorized as the same entity.
+ */
+export const isSameAddress = (addr1?: string, addr2?: string): boolean => {
+  const n1 = normalizeAddress(addr1);
+  const n2 = normalizeAddress(addr2);
+  if (!n1 && !n2) return true;
+  if (!n1 || !n2) return false;
+  return n1 === n2;
+};
+
+/**
+ * Generates a composite entity key combining normalized company name and normalized address.
+ */
+export const getCompanyEntityKey = (name?: string, address?: string): string => {
+  const normName = normalizeCompanyName(name || '') || (name || '').trim().toLowerCase();
+  const normAddr = normalizeAddress(address);
+  return `${normName}::${normAddr}`;
+};
+
+/**
+ * Determines whether two records represent the same company entity.
+ * Same company name with different address MUST return false.
+ */
+export const isSameCompanyEntity = (
+  a: { name?: string; address?: string; nib?: string },
+  b: { name?: string; address?: string; nib?: string }
+): boolean => {
+  if (!isSameAddress(a.address, b.address)) return false;
+
+  const aName = (a.name || '').trim();
+  const bName = (b.name || '').trim();
+  if (aName && bName) {
+    return isCompanyNameMatch(aName, bName);
+  }
+
+  const validNibA = a.nib && a.nib !== '0000000000000' ? a.nib.trim() : '';
+  const validNibB = b.nib && b.nib !== '0000000000000' ? b.nib.trim() : '';
+  return !!(validNibA && validNibB && validNibA === validNibB);
+};
+
+/**
+ * Formats a company label with address for dropdown selectors so companies
+ * sharing the same name at different addresses remain distinguishable.
+ */
+export const formatCompanyOptionLabel = (
+  company: { name: string; address?: string; nib?: string },
+  includeNib = false
+): string => {
+  const normAddr = normalizeAddress(company.address);
+  const base = normAddr ? `${company.name} — ${company.address}` : company.name;
+  return includeNib && company.nib ? `${base} (NIB: ${company.nib})` : base;
+};
+
 export const buildNIBComparisonList = (
   companies: Company[],
   permits: Permit[],
   lkpmRecords: LKPMRecord[]
 ): NIBComparisonEntity[] => {
-  // Aggregate companies from companies list + any distinct entity in permits or lkpm
+  // Aggregate companies by identity + address (same name with different address stays separate)
   const companyMap = new Map<string, Company>();
 
+  const findExistingKey = (candidate: { id?: string; name?: string; address?: string; nib?: string }): string | null => {
+    for (const [key, comp] of companyMap.entries()) {
+      if (candidate.id && comp.id === candidate.id && isSameAddress(candidate.address, comp.address)) {
+        return key;
+      }
+      if (isSameCompanyEntity(candidate, comp)) {
+        return key;
+      }
+    }
+    return null;
+  };
+
   companies.forEach((c) => {
-    companyMap.set(c.nib || c.id, c);
+    const existingKey = findExistingKey(c);
+    if (!existingKey) {
+      const entityKey = c.id || getCompanyEntityKey(c.name, c.address);
+      companyMap.set(entityKey, c);
+    }
   });
 
   permits.forEach((p) => {
-    // Check if already matched by NIB or smart company name
-    let existingKey: string | null = null;
-    if (p.nib && companyMap.has(p.nib)) {
-      existingKey = p.nib;
-    } else {
-      for (const [key, comp] of companyMap.entries()) {
-        if ((p.nib && comp.nib === p.nib) || isCompanyNameMatch(p.companyName, comp.name)) {
-          existingKey = key;
-          break;
-        }
-      }
-    }
+    const existingKey = findExistingKey({
+      id: p.companyId,
+      name: p.companyName,
+      address: p.address,
+      nib: p.nib
+    });
 
     if (!existingKey) {
-      const key = p.nib || p.companyName;
-      companyMap.set(key, {
-        id: p.companyId || `comp-${key}`,
+      const entityKey = getCompanyEntityKey(p.companyName, p.address);
+      const mapKey = p.companyId && !companyMap.has(p.companyId) ? p.companyId : `perm-${entityKey}`;
+      companyMap.set(mapKey, {
+        id: p.companyId || `comp-${entityKey}`,
         name: p.companyName,
         nib: p.nib || '0000000000000',
         npwp: '-',
-        address: 'DKI Jakarta',
+        address: p.address || 'DKI Jakarta',
         city: 'Jakarta Selatan',
         province: 'DKI Jakarta',
         picName: p.picName || 'Penanggung Jawab',
@@ -659,27 +744,23 @@ export const buildNIBComparisonList = (
   });
 
   lkpmRecords.forEach((l) => {
-    // Check if already matched by NIB or smart company name
-    let existingKey: string | null = null;
-    if (l.nib && l.nib !== '0000000000000' && companyMap.has(l.nib)) {
-      existingKey = l.nib;
-    } else {
-      for (const [key, comp] of companyMap.entries()) {
-        if ((l.nib && l.nib !== '0000000000000' && comp.nib === l.nib) || isCompanyNameMatch(l.companyName, comp.name)) {
-          existingKey = key;
-          // If the LKPM record lacks NIB but the matched company has one, enrich it!
-          if ((!l.nib || l.nib === '0000000000000') && comp.nib && comp.nib !== '0000000000000') {
-            l.nib = comp.nib;
-          }
-          break;
-        }
-      }
-    }
+    const existingKey = findExistingKey({
+      id: l.companyId,
+      name: l.companyName,
+      address: l.projectLocation,
+      nib: l.nib
+    });
 
-    if (!existingKey) {
-      const key = (l.nib && l.nib !== '0000000000000') ? l.nib : l.companyName;
-      companyMap.set(key, {
-        id: l.companyId || `comp-${key}`,
+    if (existingKey) {
+      const comp = companyMap.get(existingKey)!;
+      if ((!l.nib || l.nib === '0000000000000') && comp.nib && comp.nib !== '0000000000000') {
+        l.nib = comp.nib;
+      }
+    } else {
+      const entityKey = getCompanyEntityKey(l.companyName, l.projectLocation);
+      const mapKey = l.companyId && !companyMap.has(l.companyId) ? l.companyId : `lkpm-${entityKey}`;
+      companyMap.set(mapKey, {
+        id: l.companyId || `comp-${entityKey}`,
         name: l.companyName,
         nib: l.nib || '0000000000000',
         npwp: '-',
@@ -698,18 +779,20 @@ export const buildNIBComparisonList = (
   const allEffectiveCompanies = Array.from(companyMap.values());
 
   return allEffectiveCompanies.map((company) => {
-    // Find all permits belonging to this company/NIB using NIB or Smart Name Matching
+    // Match permits belonging strictly to this company entity (same name AND same address)
     const companyPermits = permits.filter((p) => {
-      if (p.companyId && p.companyId === company.id) return true;
-      if (p.nib && company.nib && p.nib !== '0000000000000' && p.nib === company.nib) return true;
-      return isCompanyNameMatch(p.companyName, company.name);
+      if (p.companyId && p.companyId === company.id) {
+        return !normalizeAddress(p.address) || isSameAddress(p.address, company.address);
+      }
+      return isSameCompanyEntity({ name: p.companyName, address: p.address, nib: p.nib }, company);
     });
 
-    // Find all LKPM belonging to this company/NIB using NIB or Smart Name Matching
+    // Match LKPM belonging strictly to this company entity (same name AND same projectLocation/address)
     const companyLKPM = lkpmRecords.filter((l) => {
-      if (l.companyId && l.companyId === company.id) return true;
-      if (l.nib && company.nib && l.nib !== '0000000000000' && l.nib === company.nib) return true;
-      return isCompanyNameMatch(l.companyName, company.name);
+      if (l.companyId && l.companyId === company.id) {
+        return !normalizeAddress(l.projectLocation) || isSameAddress(l.projectLocation, company.address);
+      }
+      return isSameCompanyEntity({ name: l.companyName, address: l.projectLocation, nib: l.nib }, company);
     });
 
     const expiredPermits = companyPermits.filter((p) => calculateDaysRemaining(p.expiryDate) < 0);

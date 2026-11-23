@@ -13,7 +13,12 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { LKPMRecord, LKPMStatus, LKPMPeriod, LKPMSanction, Company } from '../types';
-import { generateSampleCsvLKPM, formatCurrencyIDR } from '../utils/helpers';
+import {
+  generateSampleCsvLKPM,
+  formatCurrencyIDR,
+  isSameCompanyEntity,
+  getCompanyEntityKey
+} from '../utils/helpers';
 
 interface BulkUploadLKPMProps {
   companies: Company[];
@@ -134,6 +139,7 @@ export const BulkUploadLKPM: React.FC<BulkUploadLKPMProps> = ({
   const processRawData = (rows: any[]) => {
     const validated: LKPMRecord[] = [];
     const errors: string[] = [];
+    const batchCompanyIds = new Map<string, string>();
 
     rows.forEach((row, idx) => {
       // Find matching keys flexibly
@@ -169,9 +175,16 @@ export const BulkUploadLKPM: React.FC<BulkUploadLKPMProps> = ({
         return;
       }
 
-      // Match or create company ID
-      const matchedCompany = companies.find(c => c.name.toLowerCase() === companyName.toLowerCase());
-      const companyId = matchedCompany ? matchedCompany.id : `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+      // Match or create company ID strictly by name + projectLocation/address
+      const matchedCompany = companies.find((c) =>
+        isSameCompanyEntity(c, { name: companyName, address: projectLocation, nib })
+      );
+      const batchKey = getCompanyEntityKey(companyName, projectLocation);
+      let companyId = matchedCompany?.id || batchCompanyIds.get(batchKey);
+      if (!companyId) {
+        companyId = `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+        batchCompanyIds.set(batchKey, companyId);
+      }
 
       let status: LKPMStatus = 'Belum Lapor';
       if (statusRaw.toLowerCase().includes('setuju')) status = 'Disetujui';

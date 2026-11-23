@@ -23,7 +23,8 @@ import { LKPMRecord, LKPMStatus, LKPMPeriod, LKPMSanction, Company, UserRole, Fo
 import { 
   formatCurrencyIDR, 
   formatIndonesianDate, 
-  calculateDaysRemaining 
+  calculateDaysRemaining,
+  formatCompanyOptionLabel
 } from '../utils/helpers';
 
 interface LKPMManagerProps {
@@ -300,7 +301,7 @@ export const LKPMManager: React.FC<LKPMManagerProps> = ({
             >
               <option value="all">Semua Entitas Usaha</option>
               {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{formatCompanyOptionLabel(c)}</option>
               ))}
             </select>
           </div>
@@ -595,7 +596,7 @@ export const LKPMManager: React.FC<LKPMManagerProps> = ({
                   className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
                 >
                   {companies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name} (NIB: {c.nib})</option>
+                    <option key={c.id} value={c.id}>{formatCompanyOptionLabel(c, true)}</option>
                   ))}
                 </select>
               </div>

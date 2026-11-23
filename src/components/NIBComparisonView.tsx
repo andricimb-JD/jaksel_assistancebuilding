@@ -51,7 +51,7 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | ComparisonStatus>('all');
   const [scaleFilter, setScaleFilter] = useState<string>('all');
-  const [expandedNIB, setExpandedNIB] = useState<string | null>(null);
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
   const [copiedNIB, setCopiedNIB] = useState<string | null>(null);
 
   // Build the unified comparison data
@@ -73,6 +73,7 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
     const matchesSearch = 
       item.companyName.toLowerCase().includes(q) ||
       item.nib.toLowerCase().includes(q) ||
+      item.address.toLowerCase().includes(q) ||
       item.picName.toLowerCase().includes(q) ||
       item.sector.toLowerCase().includes(q);
     return matchesStatus && matchesScale && matchesSearch;
@@ -85,8 +86,8 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
     setTimeout(() => setCopiedNIB(null), 2000);
   };
 
-  const toggleExpand = (nib: string) => {
-    setExpandedNIB((prev) => (prev === nib ? null : nib));
+  const toggleExpand = (companyId: string) => {
+    setExpandedCompanyId((prev) => (prev === companyId ? null : companyId));
   };
 
   // Export to Excel (.xlsx)
@@ -383,8 +384,8 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
                 </tr>
               ) : (
                 filteredList.map((item) => {
-                  const isExpanded = expandedNIB === item.nib;
-                  const companyObj = companies.find((c) => c.id === item.companyId || c.nib === item.nib) || {
+                  const isExpanded = expandedCompanyId === item.companyId;
+                  const companyObj = companies.find((c) => c.id === item.companyId) || {
                     id: item.companyId,
                     name: item.companyName,
                     nib: item.nib,
@@ -400,9 +401,9 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
                   };
 
                   return (
-                    <React.Fragment key={item.nib}>
+                    <React.Fragment key={item.companyId}>
                       <tr 
-                        onClick={() => toggleExpand(item.nib)}
+                        onClick={() => toggleExpand(item.companyId)}
                         className={`cursor-pointer transition hover:bg-slate-50/90 ${
                           item.comparisonStatus === 'DUAL_VIOLATION' ? 'bg-rose-50/30' : ''
                         }`}
@@ -435,7 +436,10 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
                               </span>
                             </div>
 
-                            <p className="text-[11px] text-slate-500 pt-0.5 truncate max-w-xs">
+                            <p className="text-[11px] text-slate-600 pt-0.5 truncate max-w-xs font-medium" title={item.address}>
+                              {item.address}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate max-w-xs">
                               {item.sector} • PIC: {item.picName} ({item.picEmail})
                             </p>
                           </div>
@@ -576,7 +580,7 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
                               </>
                             ) : (
                               <button
-                                onClick={() => toggleExpand(item.nib)}
+                                onClick={() => toggleExpand(item.companyId)}
                                 className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center space-x-1"
                               >
                                 <span>{isExpanded ? 'Tutup' : 'Rincian'}</span>
@@ -585,7 +589,7 @@ export const NIBComparisonView: React.FC<NIBComparisonViewProps> = ({
                             )}
 
                             <button
-                              onClick={() => toggleExpand(item.nib)}
+                              onClick={() => toggleExpand(item.companyId)}
                               className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition hidden sm:block"
                               title="Tampilkan / Sembunyikan Detail"
                             >

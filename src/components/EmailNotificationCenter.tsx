@@ -19,7 +19,8 @@ import { EmailLog, Permit, LKPMRecord, Company, UserRole } from '../types';
 import { 
   formatIndonesianDate, 
   generateEmailNotificationTemplate, 
-  calculateDaysRemaining 
+  calculateDaysRemaining,
+  formatCompanyOptionLabel
 } from '../utils/helpers';
 
 interface EmailNotificationCenterProps {
@@ -57,6 +58,8 @@ export const EmailNotificationCenter: React.FC<EmailNotificationCenterProps> = (
   const [previewEmail, setPreviewEmail] = useState<EmailLog | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<{ sentCount: number; messages: string[] } | null>(null);
+
+  const [selectedQuickCompanyId, setSelectedQuickCompanyId] = useState<string>(companies[0]?.id || '');
 
   // Manual Quick Send Form
   const [quickForm, setQuickForm] = useState({
@@ -297,12 +300,13 @@ export const EmailNotificationCenter: React.FC<EmailNotificationCenterProps> = (
                   />
                 ) : (
                   <select
-                    value={quickForm.companyName}
+                    value={selectedQuickCompanyId}
                     onChange={(e) => {
-                      const comp = companies.find(c => c.name === e.target.value);
+                      const comp = companies.find(c => c.id === e.target.value);
+                      setSelectedQuickCompanyId(e.target.value);
                       setQuickForm({
                         ...quickForm,
-                        companyName: e.target.value,
+                        companyName: comp?.name || '',
                         recipientEmail: comp?.picEmail || quickForm.recipientEmail,
                         recipientName: comp?.picName || quickForm.recipientName
                       });
@@ -311,7 +315,7 @@ export const EmailNotificationCenter: React.FC<EmailNotificationCenterProps> = (
                   >
                     <option value="">-- Pilih Perusahaan --</option>
                     {companies.map((c) => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{formatCompanyOptionLabel(c)}</option>
                     ))}
                   </select>
                 )}

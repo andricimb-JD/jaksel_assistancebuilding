@@ -33,7 +33,9 @@ import {
   formatIndonesianDate,
   calculateDaysRemaining,
   getPermitStatusBadge,
-  parseSpreadsheetDate
+  parseSpreadsheetDate,
+  isSameCompanyEntity,
+  getCompanyEntityKey
 } from '../utils/helpers';
 
 interface UnifiedUploadViewProps {
@@ -290,6 +292,7 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
   const processRawPermitRows = (rows: any[]) => {
     const validated: Permit[] = [];
     const errors: string[] = [];
+    const batchCompanyIds = new Map<string, string>();
 
     rows.forEach((row, idx) => {
       const normalizeHeader = (h: string, stripParens = false) => {
@@ -381,10 +384,15 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
         errors.push(`Baris ${idx + 1}: Format Tanggal Terbit "${issuedDateRawStr}" tidak terbaca sebagai tanggal yang valid`);
       }
 
-      const matchedCompany = companies.find(
-        (c) => c.name.toLowerCase() === companyName.toLowerCase() || (nib && c.nib === nib)
+      const matchedCompany = companies.find((c) =>
+        isSameCompanyEntity(c, { name: companyName, address, nib })
       );
-      const companyId = matchedCompany ? matchedCompany.id : `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+      const batchKey = getCompanyEntityKey(companyName, address);
+      let companyId = matchedCompany?.id || batchCompanyIds.get(batchKey);
+      if (!companyId) {
+        companyId = `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+        batchCompanyIds.set(batchKey, companyId);
+      }
       const resolvedNib = nib || (matchedCompany ? matchedCompany.nib : undefined);
 
       let category: PermitCategory = 'Legalitas Dasar';
@@ -510,6 +518,7 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
   const processRawLKPMRows = (rows: any[]) => {
     const validated: LKPMRecord[] = [];
     const errors: string[] = [];
+    const batchCompanyIds = new Map<string, string>();
 
     rows.forEach((row, idx) => {
       const getVal = (...keys: string[]) => {
@@ -544,8 +553,15 @@ export const UnifiedUploadView: React.FC<UnifiedUploadViewProps> = ({
         return;
       }
 
-      const matchedCompany = companies.find(c => c.name.toLowerCase() === companyName.toLowerCase());
-      const companyId = matchedCompany ? matchedCompany.id : `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+      const matchedCompany = companies.find((c) =>
+        isSameCompanyEntity(c, { name: companyName, address: projectLocation, nib })
+      );
+      const batchKey = getCompanyEntityKey(companyName, projectLocation);
+      let companyId = matchedCompany?.id || batchCompanyIds.get(batchKey);
+      if (!companyId) {
+        companyId = `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+        batchCompanyIds.set(batchKey, companyId);
+      }
 
       let status: LKPMStatus = 'Belum Lapor';
       if (statusRaw.toLowerCase().includes('setuju')) status = 'Disetujui';

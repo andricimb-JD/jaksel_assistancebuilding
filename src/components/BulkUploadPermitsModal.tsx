@@ -13,7 +13,13 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Permit, PermitCategory, Company } from '../types';
-import { generateSampleCsvPermits, formatCurrencyIDR, parseSpreadsheetDate } from '../utils/helpers';
+import {
+  generateSampleCsvPermits,
+  formatCurrencyIDR,
+  parseSpreadsheetDate,
+  isSameCompanyEntity,
+  getCompanyEntityKey
+} from '../utils/helpers';
 
 interface BulkUploadPermitsModalProps {
   isOpen: boolean;
@@ -165,6 +171,7 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
   const processRawData = (rows: any[]) => {
     const validated: Permit[] = [];
     const errors: string[] = [];
+    const batchCompanyIds = new Map<string, string>();
 
     rows.forEach((row, idx) => {
       const normalizeHeader = (h: string, stripParens = false) => {
@@ -246,13 +253,22 @@ export const BulkUploadPermitsModal: React.FC<BulkUploadPermitsModalProps> = ({
         errors.push(`Baris ${idx + 1}: Format Tanggal Terbit "${issuedDateRawStr}" tidak valid`);
       }
 
-      // Match or assign company
-      const matchedComp = companies.find(c => c.name.toLowerCase() === companyName.toLowerCase()) || companies[0];
+      // Match or assign company strictly by name + address
+      const resolvedCompanyName = companyName || (companies[0] ? companies[0].name : 'PT Nusantara Petrokimia Raya');
+      const matchedComp = companies.find((c) =>
+        isSameCompanyEntity(c, { name: resolvedCompanyName, address })
+      );
+      const batchKey = getCompanyEntityKey(resolvedCompanyName, address);
+      let companyId = matchedComp?.id || batchCompanyIds.get(batchKey);
+      if (!companyId) {
+        companyId = `comp-auto-${Date.now().toString().slice(-4)}-${idx}`;
+        batchCompanyIds.set(batchKey, companyId);
+      }
 
       validated.push({
         id: `prm-bulk-${Date.now().toString().slice(-6)}-${idx}`,
-        companyId: matchedComp ? matchedComp.id : 'comp-1',
-        companyName: companyName || (matchedComp ? matchedComp.name : 'PT Nusantara Petrokimia Raya'),
+        companyId,
+        companyName: resolvedCompanyName,
         address: address || undefined,
         permitName,
         category: normalizeCategory(categoryRaw || usage || permitName),

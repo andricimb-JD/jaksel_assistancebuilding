@@ -40,7 +40,8 @@ import {
 import { 
   calculateDaysRemaining, 
   generateEmailNotificationTemplate, 
-  formatIndonesianDate 
+  formatIndonesianDate,
+  isSameCompanyEntity
 } from './utils/helpers';
 
 export default function App() {
@@ -339,19 +340,21 @@ export default function App() {
   const handleBulkImportPermits = (imported: Permit[]) => {
     setPermits((prev) => [...imported, ...prev]);
 
-    // Auto-register companies from permit spreadsheet rows
+    // Auto-register companies from permit spreadsheet rows (differentiated by name + address)
     setCompanies((prev) => {
-      const existingNames = new Set(prev.map((c) => c.name.toLowerCase()));
-      const toAdd: Company[] = [];
+      const next = [...prev];
       imported.forEach((p) => {
-        const nameLower = p.companyName.trim().toLowerCase();
-        if (p.companyName && !existingNames.has(nameLower) && !toAdd.some((c) => c.name.toLowerCase() === nameLower)) {
-          toAdd.push({
+        if (!p.companyName?.trim()) return;
+        const alreadyExists = next.some((c) =>
+          isSameCompanyEntity(c, { name: p.companyName, address: p.address, nib: p.nib })
+        );
+        if (!alreadyExists) {
+          next.push({
             id: p.companyId || `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             name: p.companyName,
             nib: p.nib || '0000000000000',
             npwp: '-',
-            address: 'Indonesia',
+            address: p.address || 'Indonesia',
             city: '-',
             province: '-',
             picName: p.picName || 'Penanggung Jawab',
@@ -362,7 +365,7 @@ export default function App() {
           });
         }
       });
-      return [...prev, ...toAdd];
+      return next;
     });
 
     addComplianceEvent(
@@ -434,14 +437,16 @@ export default function App() {
   const handleBulkImportLKPM = (imported: LKPMRecord[]) => {
     setLkpmRecords((prev) => [...imported, ...prev]);
 
-    // Auto-register companies from LKPM spreadsheet rows
+    // Auto-register companies from LKPM spreadsheet rows (differentiated by name + projectLocation/address)
     setCompanies((prev) => {
-      const existingNames = new Set(prev.map((c) => c.name.toLowerCase()));
-      const toAdd: Company[] = [];
+      const next = [...prev];
       imported.forEach((l) => {
-        const nameLower = l.companyName.trim().toLowerCase();
-        if (l.companyName && !existingNames.has(nameLower) && !toAdd.some((c) => c.name.toLowerCase() === nameLower)) {
-          toAdd.push({
+        if (!l.companyName?.trim()) return;
+        const alreadyExists = next.some((c) =>
+          isSameCompanyEntity(c, { name: l.companyName, address: l.projectLocation, nib: l.nib })
+        );
+        if (!alreadyExists) {
+          next.push({
             id: l.companyId || `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             name: l.companyName,
             nib: l.nib || '0000000000000',
@@ -457,7 +462,7 @@ export default function App() {
           });
         }
       });
-      return [...prev, ...toAdd];
+      return next;
     });
 
     addComplianceEvent(
@@ -1165,6 +1170,7 @@ export default function App() {
             lkpmRecords={lkpmRecords}
             savedLetters={warningLetters}
             currentUserRole={currentUser.role}
+            currentUserName={currentUser.name}
             initialItem={activeLetterItem}
             onSaveLetter={handleSaveLetter}
             onSendEmailWithLetter={(letter) => {

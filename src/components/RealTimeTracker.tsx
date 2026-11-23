@@ -112,9 +112,13 @@ export const RealTimeTracker: React.FC<RealTimeTrackerProps> = ({
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 flex items-center space-x-1 mt-1">
+                  <p className="text-xs text-slate-500 flex items-center space-x-1 mt-1" title={company.address}>
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{company.city}, {company.province}</span>
+                    <span className="truncate">
+                      {company.address && company.address !== '-' && company.address !== 'Indonesia'
+                        ? company.address
+                        : `${company.city}, ${company.province}`}
+                    </span>
                   </p>
 
                   <div className="grid grid-cols-3 gap-1.5 text-center mt-3 pt-3 border-t border-slate-100">
