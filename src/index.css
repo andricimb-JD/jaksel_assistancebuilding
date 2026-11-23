@@ -8,9 +8,26 @@
   }
 }
 
+@page {
+  size: 215mm 330mm;
+  margin: 12mm 15mm 14mm 15mm;
+}
+
 @media print {
+  html,
   body {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .no-print {
     display: none !important;
@@ -20,5 +37,24 @@
   }
   .page-break {
     page-break-after: always;
+  }
+  #surat-teguran-print {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 11pt !important;
+    line-height: 1.42 !important;
+  }
+  #surat-teguran-print input,
+  #surat-teguran-print textarea {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    outline: none !important;
+    resize: none !important;
   }
 }

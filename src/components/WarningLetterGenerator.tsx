@@ -624,11 +624,11 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       )}
 
       {/* Official Printable Letter Paper (#surat-teguran-print) */}
-      <div className="bg-slate-200 p-3 sm:p-8 rounded-2xl flex justify-center shadow-inner">
+      <div className="bg-slate-200 p-3 sm:p-8 rounded-2xl flex justify-center shadow-inner print:bg-white print:p-0 print:rounded-none print:shadow-none print:block">
         <div
           id="surat-teguran-print"
-          className="bg-white text-slate-950 shadow-2xl px-8 py-8 sm:px-14 sm:py-10 max-w-[820px] w-full font-sans text-[12.5px] leading-[1.45] relative border border-slate-300"
-          style={{ minHeight: '1050px' }}
+          className="bg-white text-slate-950 shadow-2xl px-8 py-8 sm:px-14 sm:py-10 max-w-[820px] w-full font-sans text-[12.5px] leading-[1.45] relative border border-slate-300 print:max-w-none print:w-full print:px-0 print:py-0 print:border-0 print:shadow-none"
+          style={{ minHeight: '1240px' }}
         >
           {/* KOP SURAT RESMI PEMPROV DKI JAKARTA */}
           <div className="relative pb-1">
