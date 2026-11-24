@@ -18,7 +18,11 @@ import {
   Users,
   LogOut,
   Trash2,
-  Download
+  Download,
+  Phone,
+  Edit3,
+  Save,
+  X
 } from 'lucide-react';
 import { Permit, LKPMRecord, UserAccount, Company } from '../types';
 
@@ -31,6 +35,7 @@ interface HeaderProps {
   currentUser: UserAccount;
   users: UserAccount[];
   onSwitchUser: (user: UserAccount) => void;
+  onUpdateProfile?: (updates: { name?: string; phone?: string }) => void;
   onLogout: () => void;
   onClearAllData?: () => void;
   onQuickAddPermit: () => void;
@@ -49,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   users,
   onSwitchUser,
+  onUpdateProfile,
   onLogout,
   onClearAllData,
   onQuickAddPermit,
@@ -59,6 +65,21 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [currentDateTime, setCurrentDateTime] = useState<string>('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
+  const [isEditingPhone, setIsEditingPhone] = useState<boolean>(false);
+  const [profilePhoneInput, setProfilePhoneInput] = useState<string>(currentUser.phone || '');
+
+  useEffect(() => {
+    setProfilePhoneInput(currentUser.phone || '');
+    setIsEditingPhone(false);
+  }, [currentUser.id, currentUser.phone]);
+
+  const handleSaveProfilePhone = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateProfile) {
+      onUpdateProfile({ phone: profilePhoneInput });
+    }
+    setIsEditingPhone(false);
+  };
 
   useEffect(() => {
     const updateTime = () => {
@@ -287,6 +308,90 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* Dropdown Menu */}
                 {isUserMenuOpen && (
                   <div className="absolute right-0 mt-2 w-80 bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-2 z-50 animate-slide-in">
+                    {/* Profil User Aktif (Tersedia untuk semua peran termasuk Super Admin) */}
+                    <div className="p-3 mb-2 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 rounded-xl ${currentUser.avatarColor} text-white flex items-center justify-center font-bold text-sm shadow shrink-0`}>
+                          {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
+                          <p className="text-[11px] text-slate-400 font-mono truncate">{currentUser.email}</p>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                            currentUser.role === 'superadmin'
+                              ? 'bg-purple-500/20 text-purple-300'
+                              : currentUser.role === 'petugas'
+                              ? 'bg-amber-500/20 text-amber-300'
+                              : currentUser.role === 'koordinator'
+                              ? 'bg-sky-500/20 text-sky-300'
+                              : currentUser.role === 'pelaku_usaha'
+                              ? 'bg-blue-500/20 text-blue-300'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                          }`}>
+                            {currentUser.roleTitle}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* No. HP Profil User */}
+                      <div className="pt-2 border-t border-slate-800/80">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 flex items-center space-x-1.5">
+                            <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>No. HP Profil:</span>
+                          </span>
+                          {!isEditingPhone && onUpdateProfile && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfilePhoneInput(currentUser.phone || '');
+                                setIsEditingPhone(true);
+                              }}
+                              className="text-sky-400 hover:text-sky-300 font-semibold flex items-center space-x-1 cursor-pointer"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>{currentUser.phone ? 'Ubah' : 'Isi No. HP'}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {isEditingPhone ? (
+                          <form onSubmit={handleSaveProfilePhone} className="mt-1.5 flex items-center space-x-1.5">
+                            <input
+                              type="tel"
+                              value={profilePhoneInput}
+                              onChange={(e) => setProfilePhoneInput(e.target.value)}
+                              placeholder="0812-XXXX-XXXX"
+                              className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                              autoFocus
+                            />
+                            <button
+                              type="submit"
+                              title="Simpan No. HP"
+                              className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfilePhoneInput(currentUser.phone || '');
+                                setIsEditingPhone(false);
+                              }}
+                              title="Batal"
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </form>
+                        ) : (
+                          <p className={`mt-1 text-xs font-mono ${currentUser.phone ? 'text-emerald-300 font-semibold' : 'text-slate-500 italic'}`}>
+                            {currentUser.phone || 'Belum diisi (digunakan di Surat PIC)'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
                     {currentUser.role === 'superadmin' ? (
                       /* Quick User Switcher: Strictly restricted to Super Admin */
                       <>
@@ -300,7 +405,7 @@ export const Header: React.FC<HeaderProps> = ({
                           </p>
                         </div>
 
-                        <div className="divide-y divide-slate-800/60 py-1 max-h-64 overflow-y-auto">
+                        <div className="divide-y divide-slate-800/60 py-1 max-h-56 overflow-y-auto">
                           {users.map((user) => {
                             const isSelected = user.id === currentUser.id;
                             return (
@@ -335,6 +440,11 @@ export const Header: React.FC<HeaderProps> = ({
                                   }`}>
                                     {user.roleTitle}
                                   </span>
+                                  {user.phone && (
+                                    <p className="text-[10px] font-mono text-emerald-400 mt-0.5">
+                                      HP: {user.phone}
+                                    </p>
+                                  )}
                                   <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
                                     {user.description}
                                   </p>
@@ -346,28 +456,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </>
                     ) : (
                       /* Non-Superadmin: NO quick user switching! Only profile information & logout */
-                      <div className="p-3 space-y-3">
-                        <div className="flex items-center space-x-3 pb-3 border-b border-slate-800">
-                          <div className={`w-10 h-10 rounded-xl ${currentUser.avatarColor} text-white flex items-center justify-center font-bold text-sm shadow`}>
-                            {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
-                            <p className="text-[11px] text-slate-400 font-mono truncate">{currentUser.email}</p>
-                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                              currentUser.role === 'petugas'
-                                ? 'bg-amber-500/20 text-amber-300'
-                                : currentUser.role === 'koordinator'
-                                ? 'bg-sky-500/20 text-sky-300'
-                                : currentUser.role === 'pelaku_usaha'
-                                ? 'bg-blue-500/20 text-blue-300'
-                                : 'bg-emerald-500/20 text-emerald-300'
-                            }`}>
-                              {currentUser.roleTitle}
-                            </span>
-                          </div>
-                        </div>
-
+                      <div className="px-1 space-y-2.5">
                         <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1 text-slate-300 text-[11px]">
                           <div className="font-semibold text-slate-200">Batasan Wewenang Peran:</div>
                           <p className="text-slate-400 leading-snug">{currentUser.description}</p>

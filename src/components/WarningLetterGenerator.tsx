@@ -9,7 +9,14 @@ import {
   Sparkles,
   Plus,
   FileSpreadsheet,
-  Check
+  Check,
+  Database,
+  Clock,
+  Trash2,
+  FolderOpen,
+  FilePlus2,
+  Search,
+  X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { WarningLetter, WarningLetterItem, Permit, LKPMRecord, Company, UserRole } from '../types';
@@ -32,7 +39,24 @@ interface WarningLetterGeneratorProps {
   currentUserRole?: UserRole;
   currentUserName?: string;
   currentUserPhone?: string;
+  onUpdateUserPhone?: (phone: string) => void;
   initialItem?: { type: 'PERMIT' | 'LKPM' | 'DUAL_VIOLATION'; record: any } | null;
+  onUpsertLetter?: (letter: WarningLetter) => void;
+  onDeleteLetter?: (letterId: string) => void;
+  onSyncPermitFromLetter?: (payload: {
+    companyId?: string;
+    companyName: string;
+    buildingName?: string;
+    address: string;
+    picEmail?: string;
+    docKind: 'PRIMARY' | 'SECONDARY';
+    templateMode: 'SLF_RKK' | 'PBG_IPR';
+    documentNumber: string;
+    issuedDateRaw?: string;
+    expiryDateRaw?: string;
+    rawIssuedText?: string;
+    rawExpiryText?: string;
+  }) => void;
   onSaveLetter: (letter: WarningLetter) => void;
   onSendEmailWithLetter: (letter: WarningLetter) => void;
 }
@@ -117,11 +141,15 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   companies,
   permits,
   lkpmRecords: _lkpmRecords,
-  savedLetters: _savedLetters,
+  savedLetters,
   currentUserRole = 'koordinator',
   currentUserName = '',
   currentUserPhone = '',
+  onUpdateUserPhone,
   initialItem,
+  onUpsertLetter,
+  onDeleteLetter,
+  onSyncPermitFromLetter,
   onSaveLetter,
   onSendEmailWithLetter
 }) => {
@@ -214,12 +242,96 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   ]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeLetterId, setActiveLetterId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kp_active_letter_id') || '';
+    }
+    return '';
+  });
+  const [companySearchQuery, setCompanySearchQuery] = useState<string>('');
+  const [hasUserEdited, setHasUserEdited] = useState<boolean>(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string>('');
+  const hasUserEditedRef = React.useRef<boolean>(false);
+  const lastAppliedCompanyKeyRef = React.useRef<string>('');
+  const skipNextCompanySyncRef = React.useRef<boolean>(false);
+  const canEditDatabase = currentUserRole === 'koordinator' || currentUserRole === 'superadmin';
+  const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
+  const [editRowForm, setEditRowForm] = useState<{
+    letterNumber: string;
+    companyName: string;
+    docBuildingName: string;
+    docPrimaryNumber: string;
+    docPrimaryExpiry: string;
+    docSecondaryNumberDate: string;
+    docSecondaryExpiry: string;
+    status: WarningLetter['status'];
+  } | null>(null);
+
+  const filteredCompanies = companies.filter((c) => {
+    const q = companySearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.address || '').toLowerCase().includes(q) ||
+      (c.nib || '').toLowerCase().includes(q) ||
+      (c.sector || '').toLowerCase().includes(q)
+    );
+  });
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) || companies[0];
   const preset = TEMPLATE_PRESETS[templateMode];
 
+  const markEdited = () => {
+    hasUserEditedRef.current = true;
+    if (!hasUserEdited) setHasUserEdited(true);
+  };
+
+  // Restore last active letter from database on initial mount (when no explicit initialItem)
+  useEffect(() => {
+    if (initialItem || !activeLetterId || savedLetters.length === 0) return;
+    const found = savedLetters.find((l) => l.id === activeLetterId);
+    if (!found) return;
+
+    skipNextCompanySyncRef.current = true;
+    const restoredMode: LetterTemplateMode = found.templateMode || 'SLF_RKK';
+    lastAppliedCompanyKeyRef.current = `${found.companyId && found.companyId !== 'comp-custom' ? found.companyId : ''}::${restoredMode}`;
+
+    setTemplateMode(restoredMode);
+    if (found.companyId && found.companyId !== 'comp-custom' && companies.some((c) => c.id === found.companyId)) {
+      setSelectedCompanyId(found.companyId);
+    }
+    setLetterNumber(found.letterNumber || '[NOMOR SURAT]');
+    setLetterDate(found.letterDate || new Date().toISOString().split('T')[0]);
+    if (found.letterSifat) setLetterSifat(found.letterSifat);
+    if (found.letterAttachment !== undefined) setLetterAttachment(found.letterAttachment);
+    if (found.letterCity) setLetterCity(found.letterCity);
+    if (found.subject) setSubjectTitle(found.subject);
+    if (found.recipientName) setRecipientOwnerName(found.recipientName);
+    if (found.recipientRole) setRecipientObjectName(found.recipientRole);
+    if (found.recipientEmail) setRecipientEmail(found.recipientEmail);
+    if (found.recipientLocation) setRecipientLocation(found.recipientLocation);
+    if (found.additionalNotes) setOpeningText(found.additionalNotes);
+    if (found.companyName) setDocOwner(found.companyName);
+    if (found.docBuildingName !== undefined) setDocBuildingName(found.docBuildingName);
+    if (found.companyAddress) setDocAddress(found.companyAddress);
+    if (found.docPrimaryNumber !== undefined) setDocPrimaryNumber(found.docPrimaryNumber);
+    if (found.docPrimaryDate !== undefined) setDocPrimaryDate(found.docPrimaryDate);
+    if (found.docPrimaryExpiry !== undefined) setDocPrimaryExpiry(found.docPrimaryExpiry);
+    if (found.docSecondaryNumberDate !== undefined) setDocSecondaryNumberDate(found.docSecondaryNumberDate);
+    if (found.docSecondaryExpiry !== undefined) setDocSecondaryExpiry(found.docSecondaryExpiry);
+    if (found.picOfficerName) setPicOfficerName(found.picOfficerName);
+    if (found.picOfficerPhone !== undefined) setPicOfficerPhone(found.picOfficerPhone);
+  }, []);
+
   // Switch template texts cleanly
   const applyTemplateMode = (mode: LetterTemplateMode) => {
+    if (hasUserEditedRef.current) {
+      syncAllToDatabase();
+    }
+    hasUserEditedRef.current = false;
+    setHasUserEdited(false);
+    setActiveLetterId('');
+    localStorage.removeItem('kp_active_letter_id');
     const p = TEMPLATE_PRESETS[mode];
     setTemplateMode(mode);
     setSubjectTitle(p.subjectTitle);
@@ -245,6 +357,10 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
     if (!initialItem) return;
     const rec = initialItem.record;
     const compId = rec?.company?.id || rec?.companyId;
+    setActiveLetterId('');
+    localStorage.removeItem('kp_active_letter_id');
+    setHasUserEdited(false);
+    lastAppliedCompanyKeyRef.current = '';
     if (compId) {
       setSelectedCompanyId(compId);
     }
@@ -260,8 +376,18 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
     }
   }, [initialItem]);
 
-  // Populate fields from selected company & permits
+  // Populate fields from selected company (checking recorded savedLetters first, then permits) ONLY when entity or template changes
   useEffect(() => {
+    if (skipNextCompanySyncRef.current) {
+      skipNextCompanySyncRef.current = false;
+      return;
+    }
+
+    const effectiveCompanyId = selectedCompany?.id || '';
+    const companyKey = `${effectiveCompanyId}::${templateMode}`;
+    if (lastAppliedCompanyKeyRef.current === companyKey) return;
+    lastAppliedCompanyKeyRef.current = companyKey;
+
     const p = TEMPLATE_PRESETS[templateMode];
 
     if (!selectedCompany) {
@@ -278,19 +404,85 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       return;
     }
 
-    const compPermits = permits.filter(
-      (item) =>
-        (item.companyId === selectedCompany.id &&
-          (!normalizeAddress(item.address) || isSameAddress(item.address, selectedCompany.address))) ||
+    const compPermits = permits.filter((item) => {
+      const bothHaveAddr = Boolean(normalizeAddress(item.address) && normalizeAddress(selectedCompany.address));
+      return (
+        (item.companyId === selectedCompany.id && (!bothHaveAddr || isSameAddress(item.address, selectedCompany.address))) ||
         isSameCompanyEntity(
           { name: item.companyName, address: item.address, nib: item.nib },
           selectedCompany
         )
-    );
+      );
+    });
 
     const firstWithAddress = compPermits.find((item) => item.address);
     const firstWithUsage = compPermits.find((item) => item.usage);
 
+    const primaryPermit =
+      templateMode === 'SLF_RKK'
+        ? compPermits.find((item) => /slf|laik fungsi/i.test(`${item.permitName} ${item.category}`))
+        : compPermits.find((item) => /pbg|persetujuan bangunan/i.test(`${item.permitName} ${item.category}`));
+
+    const secondaryPermit =
+      templateMode === 'SLF_RKK'
+        ? compPermits.find((item) => /rkk|skk|kebakaran|damkar/i.test(`${item.permitName} ${item.category}`))
+        : compPermits.find((item) => /ipr|reklame/i.test(`${item.permitName} ${item.category}`));
+
+    const permitPrimaryNumber = primaryPermit?.documentNumber || '';
+    const permitPrimaryDate = primaryPermit
+      ? primaryPermit.rawIssuedText ?? (primaryPermit.issuedDate ? formatIndonesianDate(primaryPermit.issuedDate) : '')
+      : '';
+    const permitPrimaryExpiry = primaryPermit
+      ? primaryPermit.rawExpiryText ?? (primaryPermit.expiryDate ? formatIndonesianDate(primaryPermit.expiryDate) : '')
+      : '';
+    const permitSecondaryNumberDate = secondaryPermit
+      ? secondaryPermit.rawIssuedText ??
+        [
+          secondaryPermit.documentNumber,
+          secondaryPermit.issuedDate ? formatIndonesianDate(secondaryPermit.issuedDate) : ''
+        ]
+          .filter(Boolean)
+          .join(' / ')
+      : '';
+    const permitSecondaryExpiry = secondaryPermit
+      ? secondaryPermit.rawExpiryText ?? (secondaryPermit.expiryDate ? formatIndonesianDate(secondaryPermit.expiryDate) : '')
+      : '';
+
+    // Check if there is already a recorded letter in database for this company + templateMode
+    const recordedLetter = savedLetters.find((l) => {
+      const sameMode = (l.templateMode || 'SLF_RKK') === templateMode;
+      if (!sameMode) return false;
+      if (l.companyId === selectedCompany.id) return true;
+      return isSameCompanyEntity({ name: l.companyName, address: l.companyAddress }, selectedCompany);
+    });
+
+    if (recordedLetter) {
+      setActiveLetterId(recordedLetter.id);
+      localStorage.setItem('kp_active_letter_id', recordedLetter.id);
+      setLetterNumber(recordedLetter.letterNumber || '[NOMOR SURAT]');
+      setLetterDate(recordedLetter.letterDate || new Date().toISOString().split('T')[0]);
+      if (recordedLetter.letterSifat) setLetterSifat(recordedLetter.letterSifat);
+      if (recordedLetter.letterAttachment !== undefined) setLetterAttachment(recordedLetter.letterAttachment);
+      if (recordedLetter.letterCity) setLetterCity(recordedLetter.letterCity);
+      if (recordedLetter.subject) setSubjectTitle(recordedLetter.subject);
+      setRecipientOwnerName(recordedLetter.recipientName || selectedCompany.name);
+      setRecipientObjectName(recordedLetter.recipientRole || firstWithUsage?.usage || selectedCompany.sector || p.recipientPlaceholderObject);
+      setRecipientEmail(recordedLetter.recipientEmail || selectedCompany.picEmail || 'andri.cimb@gmail.com');
+      if (recordedLetter.recipientLocation) setRecipientLocation(recordedLetter.recipientLocation);
+      if (recordedLetter.additionalNotes) setOpeningText(recordedLetter.additionalNotes);
+
+      setDocOwner(recordedLetter.companyName || selectedCompany.name);
+      setDocBuildingName(recordedLetter.docBuildingName ?? (firstWithUsage?.usage || selectedCompany.sector || ''));
+      setDocAddress(recordedLetter.companyAddress || firstWithAddress?.address || selectedCompany.address || '');
+      setDocPrimaryNumber(recordedLetter.docPrimaryNumber !== undefined ? recordedLetter.docPrimaryNumber : permitPrimaryNumber);
+      setDocPrimaryDate(recordedLetter.docPrimaryDate !== undefined ? recordedLetter.docPrimaryDate : permitPrimaryDate);
+      setDocPrimaryExpiry(recordedLetter.docPrimaryExpiry !== undefined ? recordedLetter.docPrimaryExpiry : permitPrimaryExpiry);
+      setDocSecondaryNumberDate(recordedLetter.docSecondaryNumberDate !== undefined ? recordedLetter.docSecondaryNumberDate : permitSecondaryNumberDate);
+      setDocSecondaryExpiry(recordedLetter.docSecondaryExpiry !== undefined ? recordedLetter.docSecondaryExpiry : permitSecondaryExpiry);
+      return;
+    }
+
+    setLetterNumber('[NOMOR SURAT]');
     setRecipientOwnerName(selectedCompany.name);
     setRecipientObjectName(firstWithUsage?.usage || selectedCompany.sector || p.recipientPlaceholderObject);
     setRecipientEmail(selectedCompany.picEmail || 'andri.cimb@gmail.com');
@@ -298,51 +490,12 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
     setDocOwner(selectedCompany.name);
     setDocBuildingName(firstWithUsage?.usage || selectedCompany.sector || '');
     setDocAddress(firstWithAddress?.address || selectedCompany.address || '');
-
-    if (templateMode === 'SLF_RKK') {
-      const slfPermit = compPermits.find((item) =>
-        /slf|laik fungsi/i.test(`${item.permitName} ${item.category}`)
-      );
-      const rkkPermit = compPermits.find((item) =>
-        /rkk|skk|kebakaran|damkar/i.test(`${item.permitName} ${item.category}`)
-      );
-      setDocPrimaryNumber(slfPermit?.documentNumber || '');
-      setDocPrimaryDate(slfPermit?.issuedDate ? formatIndonesianDate(slfPermit.issuedDate) : '');
-      setDocPrimaryExpiry(slfPermit?.expiryDate ? formatIndonesianDate(slfPermit.expiryDate) : '');
-      setDocSecondaryNumberDate(
-        rkkPermit
-          ? [
-              rkkPermit.documentNumber,
-              rkkPermit.issuedDate ? formatIndonesianDate(rkkPermit.issuedDate) : ''
-            ]
-              .filter(Boolean)
-              .join(' / ')
-          : ''
-      );
-      setDocSecondaryExpiry(rkkPermit?.expiryDate ? formatIndonesianDate(rkkPermit.expiryDate) : '');
-    } else {
-      const pbgPermit = compPermits.find((item) =>
-        /pbg|persetujuan bangunan/i.test(`${item.permitName} ${item.category}`)
-      );
-      const iprPermit = compPermits.find((item) =>
-        /ipr|reklame/i.test(`${item.permitName} ${item.category}`)
-      );
-      setDocPrimaryNumber(pbgPermit?.documentNumber || '');
-      setDocPrimaryDate(pbgPermit?.issuedDate ? formatIndonesianDate(pbgPermit.issuedDate) : '');
-      setDocPrimaryExpiry(pbgPermit?.expiryDate ? formatIndonesianDate(pbgPermit.expiryDate) : '');
-      setDocSecondaryNumberDate(
-        iprPermit
-          ? [
-              iprPermit.documentNumber,
-              iprPermit.issuedDate ? formatIndonesianDate(iprPermit.issuedDate) : ''
-            ]
-              .filter(Boolean)
-              .join(' / ')
-          : ''
-      );
-      setDocSecondaryExpiry(iprPermit?.expiryDate ? formatIndonesianDate(iprPermit.expiryDate) : '');
-    }
-  }, [selectedCompanyId, templateMode, permits, companies]);
+    setDocPrimaryNumber(permitPrimaryNumber);
+    setDocPrimaryDate(permitPrimaryDate);
+    setDocPrimaryExpiry(permitPrimaryExpiry);
+    setDocSecondaryNumberDate(permitSecondaryNumberDate);
+    setDocSecondaryExpiry(permitSecondaryExpiry);
+  }, [selectedCompanyId, templateMode, permits, companies, savedLetters]);
 
   const formatDateDdMmYyyy = (isoDate: string): string => {
     const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -391,11 +544,23 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const parseSecondaryInput = (raw: string): { documentNumber: string; issuedDateRaw: string } => {
+    const trimmed = raw.trim();
+    if (!trimmed) return { documentNumber: '', issuedDateRaw: '' };
+    const slashSplit = trimmed.split(/\s+\/\s+/);
+    if (slashSplit.length >= 2) {
+      return {
+        documentNumber: slashSplit[0].trim(),
+        issuedDateRaw: slashSplit.slice(1).join(' / ').trim()
+      };
+    }
+    return { documentNumber: trimmed, issuedDateRaw: '' };
   };
 
-  const buildArchivePayload = (status: WarningLetter['status']): WarningLetter => {
+  const buildArchivePayload = (status: WarningLetter['status'], explicitId?: string): WarningLetter => {
+    const existingRecord = explicitId ? savedLetters.find((l) => l.id === explicitId) : undefined;
+    const resolvedId = explicitId || activeLetterId || `letter-${Date.now()}`;
+
     const items: WarningLetterItem[] = [
       {
         itemType: 'PERMIT',
@@ -408,8 +573,20 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       }
     ];
 
+    if (docSecondaryNumberDate.trim() || docSecondaryExpiry.trim()) {
+      items.push({
+        itemType: 'PERMIT',
+        itemName: preset.secondaryDocLabel,
+        referenceNumber: docSecondaryNumberDate || '-',
+        deadlineOrExpiry: docSecondaryExpiry || letterDate,
+        daysRemainingOrOverdue: 0,
+        legalBasis: 'Peraturan Pemerintah Nomor 16 Tahun 2021',
+        actionRequired: `Pembaruan ${preset.secondaryDocLabel}`
+      });
+    }
+
     return {
-      id: `letter-${Date.now()}`,
+      id: resolvedId,
       letterNumber,
       letterDate,
       type: 'Teguran Izin Kedaluwarsa',
@@ -428,19 +605,246 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       deadlineDays: 7,
       items,
       additionalNotes: openingText,
-      generatedAt: new Date().toISOString(),
-      status
+      generatedAt: existingRecord?.generatedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status,
+      templateMode,
+      letterSifat,
+      letterAttachment,
+      letterCity,
+      recipientLocation,
+      docBuildingName,
+      docPrimaryNumber,
+      docPrimaryDate,
+      docPrimaryExpiry,
+      docSecondaryNumberDate,
+      docSecondaryExpiry,
+      picOfficerName,
+      picOfficerPhone
     };
   };
 
+  const syncAllToDatabase = (forcedStatus?: WarningLetter['status']) => {
+    const hasMeaningfulInput =
+      (letterNumber.trim() && letterNumber.trim() !== '[NOMOR SURAT]') ||
+      Boolean(docSecondaryNumberDate.trim()) ||
+      Boolean(docSecondaryExpiry.trim()) ||
+      Boolean(docPrimaryNumber.trim()) ||
+      Boolean(docPrimaryDate.trim()) ||
+      Boolean(docPrimaryExpiry.trim()) ||
+      Boolean(docOwner.trim() && !docOwner.trim().startsWith('[')) ||
+      Boolean(docBuildingName.trim()) ||
+      Boolean(docAddress.trim());
+
+    if (!forcedStatus && !hasMeaningfulInput) return;
+
+    const currentId = activeLetterId || `letter-${Date.now()}`;
+    if (currentId !== activeLetterId) {
+      setActiveLetterId(currentId);
+      localStorage.setItem('kp_active_letter_id', currentId);
+    }
+
+    const existing = savedLetters.find((l) => l.id === currentId);
+    const resolvedStatus: WarningLetter['status'] =
+      forcedStatus || existing?.status || 'Draf';
+
+    const payload = buildArchivePayload(resolvedStatus, currentId);
+    if (onUpsertLetter) {
+      onUpsertLetter(payload);
+    }
+
+    // Sync entered document data (RKK/SKK or IPR, and SLF/PBG BR) into kp_permits & kp_companies
+    const targetCompanyName =
+      (docOwner && !docOwner.startsWith('[') ? docOwner : '') ||
+      (recipientOwnerName && !recipientOwnerName.startsWith('[') ? recipientOwnerName : '') ||
+      selectedCompany?.name ||
+      '';
+
+    if (onSyncPermitFromLetter && targetCompanyName) {
+      if (docPrimaryNumber.trim() || docPrimaryDate.trim() || docPrimaryExpiry.trim()) {
+        onSyncPermitFromLetter({
+          companyId: selectedCompany?.id,
+          companyName: targetCompanyName,
+          buildingName: docBuildingName || recipientObjectName,
+          address: docAddress || selectedCompany?.address || 'Jakarta Selatan',
+          picEmail: recipientEmail,
+          docKind: 'PRIMARY',
+          templateMode,
+          documentNumber: docPrimaryNumber.trim(),
+          issuedDateRaw: docPrimaryDate.trim(),
+          expiryDateRaw: docPrimaryExpiry.trim(),
+          rawIssuedText: docPrimaryDate.trim(),
+          rawExpiryText: docPrimaryExpiry.trim()
+        });
+      }
+
+      if (docSecondaryNumberDate.trim() || docSecondaryExpiry.trim()) {
+        const parsedSec = parseSecondaryInput(docSecondaryNumberDate);
+        onSyncPermitFromLetter({
+          companyId: selectedCompany?.id,
+          companyName: targetCompanyName,
+          buildingName: docBuildingName || recipientObjectName,
+          address: docAddress || selectedCompany?.address || 'Jakarta Selatan',
+          picEmail: recipientEmail,
+          docKind: 'SECONDARY',
+          templateMode,
+          documentNumber: parsedSec.documentNumber,
+          issuedDateRaw: parsedSec.issuedDateRaw,
+          expiryDateRaw: docSecondaryExpiry.trim(),
+          rawIssuedText: docSecondaryNumberDate.trim(),
+          rawExpiryText: docSecondaryExpiry.trim()
+        });
+      }
+    }
+
+    setLastSavedAt(
+      new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    );
+
+    return payload;
+  };
+
+  const syncAllToDatabaseRef = React.useRef(syncAllToDatabase);
+  syncAllToDatabaseRef.current = syncAllToDatabase;
+
+  // Flush any pending edits automatically if component unmounts (e.g. tab switch)
+  useEffect(() => {
+    return () => {
+      if (hasUserEditedRef.current) {
+        syncAllToDatabaseRef.current();
+      }
+    };
+  }, []);
+
+  // Debounced auto-record every edit to database (kp_letters & kp_permits)
+  useEffect(() => {
+    if (!hasUserEdited) return;
+    const timer = setTimeout(() => {
+      syncAllToDatabase();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [
+    hasUserEdited,
+    letterNumber,
+    letterSifat,
+    letterAttachment,
+    letterCity,
+    letterDate,
+    subjectTitle,
+    recipientOwnerName,
+    recipientObjectName,
+    recipientLocation,
+    recipientEmail,
+    openingText,
+    docOwner,
+    docBuildingName,
+    docAddress,
+    docPrimaryNumber,
+    docPrimaryDate,
+    docPrimaryExpiry,
+    docSecondaryNumberDate,
+    docSecondaryExpiry,
+    picOfficerName,
+    picOfficerPhone,
+    templateMode
+  ]);
+
+  const handleSelectCompanyChange = (newCompanyId: string) => {
+    if (hasUserEditedRef.current) {
+      syncAllToDatabase();
+    }
+    hasUserEditedRef.current = false;
+    setHasUserEdited(false);
+    setActiveLetterId('');
+    localStorage.removeItem('kp_active_letter_id');
+    lastAppliedCompanyKeyRef.current = '';
+    setSelectedCompanyId(newCompanyId);
+  };
+
+  const handleCreateNewLetter = () => {
+    setActiveLetterId('');
+    localStorage.removeItem('kp_active_letter_id');
+    hasUserEditedRef.current = false;
+    setHasUserEdited(false);
+    setLetterNumber('[NOMOR SURAT]');
+    setLetterDate(new Date().toISOString().split('T')[0]);
+    lastAppliedCompanyKeyRef.current = '';
+    setToastMessage('Siap membuat draf surat baru. Setiap input tetap otomatis terekam ke database.');
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleLoadSavedLetter = (letter: WarningLetter) => {
+    skipNextCompanySyncRef.current = true;
+    const mode: LetterTemplateMode = letter.templateMode || 'SLF_RKK';
+    lastAppliedCompanyKeyRef.current = `${letter.companyId && letter.companyId !== 'comp-custom' ? letter.companyId : ''}::${mode}`;
+    setActiveLetterId(letter.id);
+    localStorage.setItem('kp_active_letter_id', letter.id);
+    setHasUserEdited(false);
+
+    setTemplateMode(mode);
+    if (letter.companyId && letter.companyId !== 'comp-custom' && companies.some((c) => c.id === letter.companyId)) {
+      setSelectedCompanyId(letter.companyId);
+    }
+    setLetterNumber(letter.letterNumber || '[NOMOR SURAT]');
+    setLetterDate(letter.letterDate || new Date().toISOString().split('T')[0]);
+    if (letter.letterSifat) setLetterSifat(letter.letterSifat);
+    if (letter.letterAttachment !== undefined) setLetterAttachment(letter.letterAttachment);
+    if (letter.letterCity) setLetterCity(letter.letterCity);
+    if (letter.subject) setSubjectTitle(letter.subject);
+    if (letter.recipientName) setRecipientOwnerName(letter.recipientName);
+    if (letter.recipientRole) setRecipientObjectName(letter.recipientRole);
+    if (letter.recipientEmail) setRecipientEmail(letter.recipientEmail);
+    if (letter.recipientLocation) setRecipientLocation(letter.recipientLocation);
+    if (letter.additionalNotes) setOpeningText(letter.additionalNotes);
+    setDocOwner(letter.companyName || '');
+    setDocBuildingName(letter.docBuildingName || letter.recipientRole || '');
+    setDocAddress(letter.companyAddress || '');
+    setDocPrimaryNumber(letter.docPrimaryNumber || '');
+    setDocPrimaryDate(letter.docPrimaryDate || '');
+    setDocPrimaryExpiry(letter.docPrimaryExpiry || '');
+    setDocSecondaryNumberDate(letter.docSecondaryNumberDate || '');
+    setDocSecondaryExpiry(letter.docSecondaryExpiry || '');
+    if (letter.picOfficerName) setPicOfficerName(letter.picOfficerName);
+    if (letter.picOfficerPhone !== undefined) setPicOfficerPhone(letter.picOfficerPhone);
+
+    setToastMessage(`Data surat "${letter.letterNumber}" dimuat dari database.`);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handlePrint = () => {
+    const payload = syncAllToDatabase('Diterbitkan');
+    if (payload) {
+      onSaveLetter(payload);
+    }
+    hasUserEditedRef.current = false;
+    setHasUserEdited(false);
+    window.print();
+  };
+
   const handleSaveDraft = () => {
-    onSaveLetter(buildArchivePayload('Diterbitkan'));
-    setToastMessage('Surat berhasil diterbitkan dan disimpan dalam arsip!');
+    const currentId = activeLetterId || `letter-${Date.now()}`;
+    setActiveLetterId(currentId);
+    localStorage.setItem('kp_active_letter_id', currentId);
+    const payload = syncAllToDatabase('Diterbitkan') || buildArchivePayload('Diterbitkan', currentId);
+    onSaveLetter(payload);
+    hasUserEditedRef.current = false;
+    setHasUserEdited(false);
+    setToastMessage('Surat & seluruh data terinput berhasil disimpan ke database!');
     setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleSendEmail = () => {
-    onSendEmailWithLetter(buildArchivePayload('Terkirim via Email'));
+    const currentId = activeLetterId || `letter-${Date.now()}`;
+    setActiveLetterId(currentId);
+    localStorage.setItem('kp_active_letter_id', currentId);
+    const payload = syncAllToDatabase('Terkirim via Email') || buildArchivePayload('Terkirim via Email', currentId);
+    onSendEmailWithLetter(payload);
+    hasUserEditedRef.current = false;
+    setHasUserEdited(false);
     setToastMessage(`Salinan resmi surat berhasil dikirimkan ke email ${recipientEmail}!`);
     setTimeout(() => setToastMessage(null), 5000);
   };
@@ -565,24 +969,70 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
 
       {/* Template & Company Selector Bar (hidden on print) */}
       <div className="bg-white rounded-xl p-4 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 no-print">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
           <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
           <span className="text-xs font-bold text-slate-800">Pilih Entitas / Pemilik:</span>
+          {companies.length > 0 && (
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={companySearchQuery}
+                onChange={(e) => {
+                  const q = e.target.value;
+                  setCompanySearchQuery(q);
+                  const lower = q.trim().toLowerCase();
+                  if (lower) {
+                    const matched = companies.filter(
+                      (c) =>
+                        c.name.toLowerCase().includes(lower) ||
+                        (c.address || '').toLowerCase().includes(lower) ||
+                        (c.nib || '').toLowerCase().includes(lower)
+                    );
+                    if (matched.length > 0 && matched[0].id !== selectedCompanyId) {
+                      handleSelectCompanyChange(matched[0].id);
+                    }
+                  }
+                }}
+                placeholder="Cari nama PT / alamat..."
+                className="text-xs pl-8 pr-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white w-48"
+              />
+            </div>
+          )}
           <select
             value={selectedCompanyId}
-            onChange={(e) => setSelectedCompanyId(e.target.value)}
+            onChange={(e) => handleSelectCompanyChange(e.target.value)}
             className="text-xs p-1.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 bg-white max-w-xs"
           >
             {companies.length === 0 ? (
               <option value="">(Gunakan Template Kosong / Isi Manual)</option>
+            ) : filteredCompanies.length === 0 ? (
+              <option value={selectedCompanyId}>Tidak ada PT cocok dengan "{companySearchQuery}"</option>
             ) : (
-              companies.map((c) => (
+              filteredCompanies.map((c) => (
                 <option key={c.id} value={c.id}>
                   {formatCompanyOptionLabel(c)}
                 </option>
               ))
             )}
           </select>
+
+          <button
+            type="button"
+            onClick={handleCreateNewLetter}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 flex items-center space-x-1 transition"
+            title="Buat surat baru tanpa menimpa arsip sebelumnya"
+          >
+            <FilePlus2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Surat Baru</span>
+          </button>
+
+          {lastSavedAt && (
+            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+              <Database className="w-3 h-3 text-emerald-600" />
+              <span>Terekam di Database ({lastSavedAt})</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center space-x-2 flex-wrap">
@@ -614,19 +1064,37 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
 
       {/* Edit Mode Notice Banner (hidden on print) */}
       {isEditMode && (
-        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-center justify-between no-print shadow-sm">
+        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex flex-wrap items-center justify-between gap-2 no-print shadow-sm">
           <div className="flex items-center space-x-2">
             <Edit3 className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
-              <strong>Mode Edit Dokumen Aktif:</strong> Klik teks atau kolom tabel pada surat di bawah untuk mengubah nomor surat, tanggal, data pemilik/bangunan, nomor SLF/RKK/PBG/IPR, dan nama PIC.
+              <strong>Mode Edit Dokumen Aktif:</strong> Klik teks atau kolom tabel pada surat di bawah untuk mengubah data surat. Nama PIC &amp; No. HP otomatis diambil dari <strong>Profil User</strong> aktif{currentUserPhone ? ` (${currentUserPhone})` : ' (belum diisi pada Profil User)'}.
             </span>
           </div>
-          <button
-            onClick={() => setIsEditMode(false)}
-            className="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shrink-0 ml-3"
-          >
-            Selesai Mengedit
-          </button>
+          <div className="flex items-center space-x-2 shrink-0 ml-auto">
+            {onUpdateUserPhone && picOfficerPhone.trim() !== (currentUserPhone || '').trim() && (
+              <button
+                type="button"
+                onClick={() => onUpdateUserPhone(picOfficerPhone.trim())}
+                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center space-x-1 transition"
+                title="Simpan No. HP ini ke data Profil User aktif"
+              >
+                <Save className="w-3 h-3" />
+                <span>Simpan No. HP ke Profil</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (hasUserEditedRef.current) {
+                  syncAllToDatabase();
+                }
+                setIsEditMode(false);
+              }}
+              className="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px]"
+            >
+              Selesai Mengedit
+            </button>
+          </div>
         </div>
       )}
 
@@ -720,7 +1188,11 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                       <input
                         type="text"
                         value={letterNumber}
-                        onChange={(e) => setLetterNumber(e.target.value)}
+                        onChange={(e) => {
+                          markEdited();
+                          setLetterNumber(e.target.value);
+                        }}
+                        onBlur={() => syncAllToDatabase()}
                         className="border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] w-60"
                       />
                     ) : (
@@ -871,7 +1343,11 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                         <input
                           type="text"
                           value={row.value}
-                          onChange={(e) => row.setter(e.target.value)}
+                          onChange={(e) => {
+                            markEdited();
+                            row.setter(e.target.value);
+                          }}
+                          onBlur={() => syncAllToDatabase()}
                           placeholder="[................................................]"
                           className="w-full border border-dashed border-amber-400/80 bg-amber-50/30 rounded px-1.5 py-0.5 text-[11.5px]"
                         />
@@ -996,8 +1472,9 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                     type="tel"
                     value={picOfficerPhone}
                     onChange={(e) => setPicOfficerPhone(e.target.value)}
-                    placeholder="0812-XXXX-XXXX"
-                    className="inline-block w-36 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-mono"
+                    placeholder={currentUserPhone ? currentUserPhone : 'Isi No. HP di Profil User'}
+                    title="Otomatis mengambil No. HP dari data Profil User aktif"
+                    className="inline-block w-40 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-mono"
                   />
                   )
                 </>
@@ -1126,6 +1603,367 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Database Recorded Letters & Document Inputs History (hidden on print) */}
+      <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm space-y-3 no-print">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <Database className="w-5 h-5 text-indigo-600 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Riwayat Surat &amp; Data Terinput di Database ({savedLetters.length})
+              </h3>
+              <p className="text-xs text-slate-500">
+                {canEditDatabase
+                  ? 'Setiap input otomatis terekam ke database. User Koordinator dapat mengubah langsung data pada baris tabel di bawah.'
+                  : 'Setiap input Nomor Surat, data RKK/SKK atau IPR, dan kelengkapan dokumen otomatis terekam ke database surat & perizinan.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {savedLetters.length === 0 ? (
+          <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-center text-xs text-slate-500">
+            Belum ada data surat terekam. Mulai ketik Nomor Surat atau data dokumen pada surat di atas untuk merekam otomatis ke database.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                  <th className="py-2.5 px-3 font-bold">Nomor Surat</th>
+                  <th className="py-2.5 px-3 font-bold">Pemilik / Bangunan</th>
+                  <th className="py-2.5 px-3 font-bold">Dokumen Utama (SLF / PBG BR)</th>
+                  <th className="py-2.5 px-3 font-bold">RKK/SKK atau IPR</th>
+                  <th className="py-2.5 px-3 font-bold">Masa Berlaku RKK/SKK / IPR</th>
+                  <th className="py-2.5 px-3 font-bold">Status &amp; Waktu</th>
+                  <th className="py-2.5 px-3 font-bold text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {savedLetters.map((letter) => {
+                  const isActiveRow = letter.id === activeLetterId;
+                  const isRowEditing = canEditDatabase && editingLetterId === letter.id && editRowForm !== null;
+
+                  const startRowEdit = () => {
+                    if (!canEditDatabase) return;
+                    setEditingLetterId(letter.id);
+                    setEditRowForm({
+                      letterNumber: letter.letterNumber || '',
+                      companyName: letter.companyName || '',
+                      docBuildingName: letter.docBuildingName || letter.recipientRole || '',
+                      docPrimaryNumber: letter.docPrimaryNumber || '',
+                      docPrimaryExpiry: letter.docPrimaryExpiry || '',
+                      docSecondaryNumberDate: letter.docSecondaryNumberDate || '',
+                      docSecondaryExpiry: letter.docSecondaryExpiry || '',
+                      status: letter.status
+                    });
+                  };
+
+                  const saveRowEdit = () => {
+                    if (!canEditDatabase || !editRowForm) return;
+                    const updatedLetter: WarningLetter = {
+                      ...letter,
+                      letterNumber: editRowForm.letterNumber.trim() || letter.letterNumber,
+                      companyName: editRowForm.companyName.trim() || letter.companyName,
+                      recipientName: editRowForm.companyName.trim() || letter.recipientName,
+                      docBuildingName: editRowForm.docBuildingName.trim(),
+                      recipientRole: editRowForm.docBuildingName.trim() || letter.recipientRole,
+                      docPrimaryNumber: editRowForm.docPrimaryNumber.trim(),
+                      docPrimaryExpiry: editRowForm.docPrimaryExpiry.trim(),
+                      docSecondaryNumberDate: editRowForm.docSecondaryNumberDate.trim(),
+                      docSecondaryExpiry: editRowForm.docSecondaryExpiry.trim(),
+                      status: editRowForm.status,
+                      updatedAt: new Date().toISOString()
+                    };
+
+                    if (onUpsertLetter) {
+                      onUpsertLetter(updatedLetter);
+                    }
+
+                    const targetMode: LetterTemplateMode = updatedLetter.templateMode || 'SLF_RKK';
+                    if (onSyncPermitFromLetter && updatedLetter.companyName && !updatedLetter.companyName.startsWith('[')) {
+                      if (updatedLetter.docPrimaryNumber?.trim() || updatedLetter.docPrimaryExpiry?.trim()) {
+                        onSyncPermitFromLetter({
+                          companyId: updatedLetter.companyId !== 'comp-custom' ? updatedLetter.companyId : undefined,
+                          companyName: updatedLetter.companyName,
+                          buildingName: updatedLetter.docBuildingName || updatedLetter.recipientRole,
+                          address: updatedLetter.companyAddress || 'Jakarta Selatan',
+                          picEmail: updatedLetter.recipientEmail,
+                          docKind: 'PRIMARY',
+                          templateMode: targetMode,
+                          documentNumber: (updatedLetter.docPrimaryNumber || '').trim(),
+                          issuedDateRaw: (updatedLetter.docPrimaryDate || '').trim(),
+                          expiryDateRaw: (updatedLetter.docPrimaryExpiry || '').trim(),
+                          rawIssuedText: (updatedLetter.docPrimaryDate || '').trim(),
+                          rawExpiryText: (updatedLetter.docPrimaryExpiry || '').trim()
+                        });
+                      }
+
+                      if (updatedLetter.docSecondaryNumberDate?.trim() || updatedLetter.docSecondaryExpiry?.trim()) {
+                        const parsedSec = parseSecondaryInput(updatedLetter.docSecondaryNumberDate || '');
+                        onSyncPermitFromLetter({
+                          companyId: updatedLetter.companyId !== 'comp-custom' ? updatedLetter.companyId : undefined,
+                          companyName: updatedLetter.companyName,
+                          buildingName: updatedLetter.docBuildingName || updatedLetter.recipientRole,
+                          address: updatedLetter.companyAddress || 'Jakarta Selatan',
+                          picEmail: updatedLetter.recipientEmail,
+                          docKind: 'SECONDARY',
+                          templateMode: targetMode,
+                          documentNumber: parsedSec.documentNumber,
+                          issuedDateRaw: parsedSec.issuedDateRaw,
+                          expiryDateRaw: (updatedLetter.docSecondaryExpiry || '').trim(),
+                          rawIssuedText: (updatedLetter.docSecondaryNumberDate || '').trim(),
+                          rawExpiryText: (updatedLetter.docSecondaryExpiry || '').trim()
+                        });
+                      }
+                    }
+
+                    if (letter.id === activeLetterId) {
+                      setLetterNumber(updatedLetter.letterNumber);
+                      setDocOwner(updatedLetter.companyName);
+                      setRecipientOwnerName(updatedLetter.recipientName);
+                      setDocBuildingName(updatedLetter.docBuildingName || '');
+                      setRecipientObjectName(updatedLetter.recipientRole);
+                      setDocPrimaryNumber(updatedLetter.docPrimaryNumber || '');
+                      setDocPrimaryExpiry(updatedLetter.docPrimaryExpiry || '');
+                      setDocSecondaryNumberDate(updatedLetter.docSecondaryNumberDate || '');
+                      setDocSecondaryExpiry(updatedLetter.docSecondaryExpiry || '');
+                    }
+
+                    setLastSavedAt(
+                      new Date().toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })
+                    );
+                    setEditingLetterId(null);
+                    setEditRowForm(null);
+                    setToastMessage(`Data database "${updatedLetter.letterNumber}" berhasil diperbarui!`);
+                    setTimeout(() => setToastMessage(null), 3500);
+                  };
+
+                  return (
+                    <tr
+                      key={letter.id}
+                      className={
+                        isRowEditing
+                          ? 'bg-sky-50/80'
+                          : isActiveRow
+                          ? 'bg-amber-50/70'
+                          : 'hover:bg-slate-50/80'
+                      }
+                    >
+                      <td
+                        className={`py-2.5 px-3 font-mono font-semibold text-slate-900 ${
+                          canEditDatabase && !isRowEditing ? 'cursor-pointer hover:text-indigo-700' : ''
+                        }`}
+                        onClick={() => {
+                          if (canEditDatabase && !isRowEditing) startRowEdit();
+                        }}
+                        title={canEditDatabase && !isRowEditing ? 'Klik untuk mengubah data di database' : undefined}
+                      >
+                        {isRowEditing && editRowForm ? (
+                          <input
+                            type="text"
+                            value={editRowForm.letterNumber}
+                            onChange={(e) => setEditRowForm({ ...editRowForm, letterNumber: e.target.value })}
+                            className="w-full min-w-[140px] px-2 py-1 text-xs font-mono border border-indigo-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          letter.letterNumber || '-'
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {isRowEditing && editRowForm ? (
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              value={editRowForm.companyName}
+                              onChange={(e) => setEditRowForm({ ...editRowForm, companyName: e.target.value })}
+                              placeholder="Nama Pemilik / PT"
+                              className="w-full min-w-[150px] px-2 py-1 text-xs font-semibold border border-indigo-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={editRowForm.docBuildingName}
+                              onChange={(e) => setEditRowForm({ ...editRowForm, docBuildingName: e.target.value })}
+                              placeholder="Nama Bangunan"
+                              className="w-full min-w-[150px] px-2 py-1 text-[11px] border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <div className="font-semibold text-slate-900">{letter.companyName || '-'}</div>
+                            <div className="text-[11px] text-slate-500">{letter.docBuildingName || letter.recipientRole || '-'}</div>
+                          </>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {isRowEditing && editRowForm ? (
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              value={editRowForm.docPrimaryNumber}
+                              onChange={(e) => setEditRowForm({ ...editRowForm, docPrimaryNumber: e.target.value })}
+                              placeholder="Nomor SLF / PBG BR"
+                              className="w-full min-w-[140px] px-2 py-1 text-xs border border-indigo-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={editRowForm.docPrimaryExpiry}
+                              onChange={(e) => setEditRowForm({ ...editRowForm, docPrimaryExpiry: e.target.value })}
+                              placeholder="Masa Berlaku s.d."
+                              className="w-full min-w-[140px] px-2 py-1 text-[11px] border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <div>{letter.docPrimaryNumber || '-'}</div>
+                            {letter.docPrimaryExpiry && (
+                              <div className="text-[11px] text-slate-500">s.d. {letter.docPrimaryExpiry}</div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-800">
+                        {isRowEditing && editRowForm ? (
+                          <input
+                            type="text"
+                            value={editRowForm.docSecondaryNumberDate}
+                            onChange={(e) => setEditRowForm({ ...editRowForm, docSecondaryNumberDate: e.target.value })}
+                            placeholder="Nomor/Tgl RKK/SKK atau IPR"
+                            className="w-full min-w-[140px] px-2 py-1 text-xs border border-indigo-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          letter.docSecondaryNumberDate || '-'
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {isRowEditing && editRowForm ? (
+                          <input
+                            type="text"
+                            value={editRowForm.docSecondaryExpiry}
+                            onChange={(e) => setEditRowForm({ ...editRowForm, docSecondaryExpiry: e.target.value })}
+                            placeholder="Masa Berlaku RKK/SKK / IPR"
+                            className="w-full min-w-[130px] px-2 py-1 text-xs border border-indigo-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          letter.docSecondaryExpiry || '-'
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {isRowEditing && editRowForm ? (
+                          <select
+                            value={editRowForm.status}
+                            onChange={(e) =>
+                              setEditRowForm({
+                                ...editRowForm,
+                                status: e.target.value as WarningLetter['status']
+                              })
+                            }
+                            className="px-2 py-1 text-[11px] font-semibold border border-indigo-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="Draf">Draf</option>
+                            <option value="Diterbitkan">Diterbitkan</option>
+                            <option value="Terkirim via Email">Terkirim via Email</option>
+                            <option value="Ditindaklanjuti">Ditindaklanjuti</option>
+                          </select>
+                        ) : (
+                          <>
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                letter.status === 'Terkirim via Email'
+                                  ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                  : letter.status === 'Diterbitkan'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                            >
+                              {letter.status}
+                            </span>
+                            <div className="text-[10px] text-slate-400 mt-0.5 flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{(letter.updatedAt || letter.generatedAt || '').replace('T', ' ').slice(0, 16)}</span>
+                            </div>
+                          </>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="inline-flex items-center space-x-1.5">
+                          {isRowEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={saveRowEdit}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] inline-flex items-center space-x-1 transition"
+                                title="Simpan perubahan ke database"
+                              >
+                                <Save className="w-3 h-3" />
+                                <span>Simpan</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingLetterId(null);
+                                  setEditRowForm(null);
+                                }}
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 transition"
+                                title="Batal ubah"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {canEditDatabase && (
+                                <button
+                                  type="button"
+                                  onClick={startRowEdit}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold text-[11px] border border-amber-200 inline-flex items-center space-x-1 transition"
+                                  title="Ubah langsung data database ini"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Ubah</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleLoadSavedLetter(letter)}
+                                className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-[11px] border border-indigo-200 inline-flex items-center space-x-1 transition"
+                              >
+                                <FolderOpen className="w-3 h-3" />
+                                <span>{isActiveRow ? 'Aktif' : 'Buka'}</span>
+                              </button>
+                              {canEditDatabase && onDeleteLetter && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (letter.id === activeLetterId) {
+                                      setActiveLetterId('');
+                                      localStorage.removeItem('kp_active_letter_id');
+                                    }
+                                    onDeleteLetter(letter.id);
+                                  }}
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition"
+                                  title="Hapus rekaman surat dari database"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -126,6 +126,8 @@ export interface Permit {
   followUpStatus?: FollowUpStatus;
   followUpDate?: string;
   followUpNotes?: string;
+  rawIssuedText?: string;
+  rawExpiryText?: string;
 }
 
 export type LKPMPeriod = 'Triwulan I' | 'Triwulan II' | 'Triwulan III' | 'Triwulan IV' | 'Semester I' | 'Semester II';
@@ -194,8 +196,22 @@ export interface WarningLetter {
   items: WarningLetterItem[];
   additionalNotes?: string;
   generatedAt: string;
+  updatedAt?: string;
   status: 'Draf' | 'Diterbitkan' | 'Terkirim via Email' | 'Ditindaklanjuti';
   followUpStatus?: FollowUpStatus;
+  templateMode?: 'SLF_RKK' | 'PBG_IPR';
+  letterSifat?: string;
+  letterAttachment?: string;
+  letterCity?: string;
+  recipientLocation?: string;
+  docBuildingName?: string;
+  docPrimaryNumber?: string;
+  docPrimaryDate?: string;
+  docPrimaryExpiry?: string;
+  docSecondaryNumberDate?: string;
+  docSecondaryExpiry?: string;
+  picOfficerName?: string;
+  picOfficerPhone?: string;
 }
 
 export interface EmailLog {

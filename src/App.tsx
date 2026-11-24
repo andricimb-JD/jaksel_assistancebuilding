@@ -41,7 +41,11 @@ import {
   calculateDaysRemaining, 
   generateEmailNotificationTemplate, 
   formatIndonesianDate,
-  isSameCompanyEntity
+  isSameCompanyEntity,
+  isSameAddress,
+  normalizeAddress,
+  parseSpreadsheetDate,
+  getPermitStatus
 } from './utils/helpers';
 
 export default function App() {
@@ -165,9 +169,26 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [globalToast, setGlobalToast] = useState<{ message: string; type: 'success' | 'info' | 'danger' } | null>(null);
 
+  const activeCurrentUser = users.find((u) => u.id === currentUser.id) || currentUser;
+
   useEffect(() => {
-    localStorage.setItem('kp_currentUser', JSON.stringify(currentUser));
-  }, [currentUser]);
+    const matched = users.find((u) => u.id === currentUser.id);
+    if (
+      matched &&
+      (matched.name !== currentUser.name ||
+        matched.phone !== currentUser.phone ||
+        matched.email !== currentUser.email ||
+        matched.username !== currentUser.username ||
+        matched.role !== currentUser.role ||
+        matched.roleTitle !== currentUser.roleTitle)
+    ) {
+      setCurrentUser(matched);
+    }
+  }, [users, currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('kp_currentUser', JSON.stringify(activeCurrentUser));
+  }, [activeCurrentUser]);
 
   // Sync to LocalStorage
   useEffect(() => {
@@ -541,9 +562,180 @@ export default function App() {
     showToast('Seluruh data Perusahaan berhasil dikosongkan!', 'info');
   };
 
-  // Warning Letter Save
+  // Silent auto-save / upsert letter to database (kp_letters -> /api/state)
+  const handleUpsertLetter = (letter: WarningLetter) => {
+    setWarningLetters((prev) => {
+      const exists = prev.some((l) => l.id === letter.id);
+      if (exists) {
+        return prev.map((l) => (l.id === letter.id ? { ...l, ...letter } : l));
+      }
+      return [letter, ...prev];
+    });
+  };
+
+  // Delete letter record from database
+  const handleDeleteLetter = (letterId: string) => {
+    setWarningLetters((prev) => prev.filter((l) => l.id !== letterId));
+    showToast('Riwayat surat dihapus dari database.', 'info');
+  };
+
+  // Auto-sync document inputs entered in WarningLetterGenerator (e.g. RKK/SKK, IPR, SLF, PBG BR) to kp_permits & kp_companies
+  const handleSyncPermitFromLetter = (payload: {
+    companyId?: string;
+    companyName: string;
+    buildingName?: string;
+    address: string;
+    picEmail?: string;
+    docKind: 'PRIMARY' | 'SECONDARY';
+    templateMode: 'SLF_RKK' | 'PBG_IPR';
+    documentNumber: string;
+    issuedDateRaw?: string;
+    expiryDateRaw?: string;
+    rawIssuedText?: string;
+    rawExpiryText?: string;
+  }) => {
+    const cleanCompanyName = (payload.companyName || '').trim();
+    if (!cleanCompanyName || cleanCompanyName.startsWith('[')) return;
+
+    const cleanDocNumber = (payload.documentNumber || '').trim();
+    const cleanExpiryRaw = (payload.expiryDateRaw || '').trim();
+    const cleanRawIssuedText = payload.rawIssuedText !== undefined ? payload.rawIssuedText.trim() : cleanDocNumber;
+    const cleanRawExpiryText = payload.rawExpiryText !== undefined ? payload.rawExpiryText.trim() : cleanExpiryRaw;
+
+    const parsedIssued = payload.issuedDateRaw ? parseSpreadsheetDate(payload.issuedDateRaw) : '';
+    const parsedExpiry = cleanExpiryRaw ? parseSpreadsheetDate(cleanExpiryRaw) : '';
+    const effectiveExpiry = parsedExpiry || cleanExpiryRaw;
+    const days = parsedExpiry ? calculateDaysRemaining(parsedExpiry) : 999;
+    const status = Number.isFinite(days) ? getPermitStatus(days) : 'active';
+
+    // Ensure company entity exists if entered manually
+    const cleanAddress = (payload.address || '').trim();
+    let resolvedCompanyId = payload.companyId || '';
+    const matchedComp = companies.find(
+      (c) =>
+        (resolvedCompanyId && c.id === resolvedCompanyId) ||
+        isSameCompanyEntity({ name: cleanCompanyName, address: cleanAddress }, c)
+    );
+
+    if (matchedComp) {
+      resolvedCompanyId = matchedComp.id;
+    } else {
+      if (!cleanDocNumber && !cleanExpiryRaw) return;
+      resolvedCompanyId = `comp-ltr-${Date.now()}`;
+      const newCompany: Company = {
+        id: resolvedCompanyId,
+        name: cleanCompanyName,
+        nib: '0000000000000',
+        npwp: '-',
+        address: cleanAddress || 'Jakarta Selatan',
+        city: 'Jakarta Selatan',
+        province: 'DKI Jakarta',
+        picName: cleanCompanyName,
+        picEmail: payload.picEmail || 'andri.cimb@gmail.com',
+        picPhone: '-',
+        scale: 'Besar',
+        sector: payload.buildingName || 'Bangunan Gedung'
+      };
+      setCompanies((prev) => {
+        const exists = prev.some((c) => isSameCompanyEntity({ name: cleanCompanyName, address: cleanAddress }, c));
+        return exists ? prev : [newCompany, ...prev];
+      });
+    }
+
+    const pattern =
+      payload.templateMode === 'SLF_RKK'
+        ? payload.docKind === 'PRIMARY'
+          ? /slf|laik fungsi/i
+          : /rkk|skk|kebakaran|damkar/i
+        : payload.docKind === 'PRIMARY'
+        ? /pbg|persetujuan bangunan/i
+        : /ipr|reklame/i;
+
+    const defaultPermitName =
+      payload.templateMode === 'SLF_RKK'
+        ? payload.docKind === 'PRIMARY'
+          ? 'Sertifikat Laik Fungsi (SLF)'
+          : 'Rekomendasi Keselamatan Kebakaran (RKK/SKK)'
+        : payload.docKind === 'PRIMARY'
+        ? 'Persetujuan Bangunan Gedung Bangunan Reklame (PBG BR)'
+        : 'Izin Penyelenggaraan Reklame (IPR)';
+
+    const defaultCategory: Permit['category'] =
+      payload.templateMode === 'PBG_IPR' && payload.docKind === 'SECONDARY'
+        ? 'Penyelenggaraan Reklame'
+        : payload.docKind === 'SECONDARY'
+        ? 'K3 & Ketenagakerjaan'
+        : 'Bangunan & Konstruksi';
+
+    setPermits((prev) => {
+      const idx = prev.findIndex((item) => {
+        const bothHaveAddr = Boolean(normalizeAddress(item.address) && normalizeAddress(cleanAddress));
+        const sameEntity =
+          (item.companyId === resolvedCompanyId && (!bothHaveAddr || isSameAddress(item.address, cleanAddress))) ||
+          isSameCompanyEntity({ name: item.companyName, address: item.address, nib: item.nib }, { name: cleanCompanyName, address: cleanAddress });
+        return sameEntity && pattern.test(`${item.permitName} ${item.category}`);
+      });
+
+      if (idx >= 0) {
+        const existing = prev[idx];
+        const nextPermit: Permit = {
+          ...existing,
+          documentNumber: cleanDocNumber,
+          issuedDate: parsedIssued || payload.issuedDateRaw || '',
+          expiryDate: effectiveExpiry,
+          rawIssuedText: cleanRawIssuedText,
+          rawExpiryText: cleanRawExpiryText,
+          address: cleanAddress || existing.address,
+          usage: payload.buildingName || existing.usage,
+          daysRemaining: Number.isFinite(days) ? days : existing.daysRemaining,
+          status: parsedExpiry ? status : existing.status
+        };
+        if (
+          nextPermit.documentNumber === existing.documentNumber &&
+          nextPermit.issuedDate === existing.issuedDate &&
+          nextPermit.expiryDate === existing.expiryDate &&
+          nextPermit.rawIssuedText === existing.rawIssuedText &&
+          nextPermit.rawExpiryText === existing.rawExpiryText &&
+          nextPermit.address === existing.address &&
+          nextPermit.usage === existing.usage
+        ) {
+          return prev;
+        }
+        return prev.map((item, i) => (i === idx ? nextPermit : item));
+      }
+
+      if (!cleanDocNumber && !cleanExpiryRaw) {
+        return prev;
+      }
+
+      const createdPermit: Permit = {
+        id: `prm-ltr-${Date.now()}-${payload.docKind.toLowerCase()}`,
+        companyId: resolvedCompanyId,
+        companyName: cleanCompanyName,
+        permitName: defaultPermitName,
+        category: defaultCategory,
+        documentNumber: cleanDocNumber,
+        issuingAuthority: 'UP. PMPTSP Kota Administrasi Jakarta Selatan',
+        issuedDate: parsedIssued || payload.issuedDateRaw || '',
+        expiryDate: effectiveExpiry,
+        rawIssuedText: cleanRawIssuedText,
+        rawExpiryText: cleanRawExpiryText,
+        picName: cleanCompanyName,
+        picEmail: payload.picEmail || 'andri.cimb@gmail.com',
+        reminderIntervals: [90, 30, 7],
+        address: cleanAddress || matchedComp?.address || 'Jakarta Selatan',
+        usage: payload.buildingName || '',
+        daysRemaining: Number.isFinite(days) ? days : 0,
+        status: parsedExpiry ? status : 'active',
+        followUpStatus: 'Belum Ditindaklanjuti'
+      };
+      return [createdPermit, ...prev];
+    });
+  };
+
+  // Warning Letter Save (upsert & log compliance event)
   const handleSaveLetter = (letter: WarningLetter) => {
-    setWarningLetters((prev) => [letter, ...prev]);
+    handleUpsertLetter(letter);
     addComplianceEvent(
       'LETTER_GENERATED',
       'Surat Teguran Resmi Diterbitkan',
@@ -551,7 +743,7 @@ export default function App() {
       'warning',
       letter.companyName
     );
-    showToast(`Surat Teguran No. ${letter.letterNumber} berhasil disimpan dalam arsip.`);
+    showToast(`Surat Teguran No. ${letter.letterNumber} berhasil disimpan ke database!`);
   };
 
   // Email sending
@@ -733,18 +925,19 @@ export default function App() {
 
   // Login handler
   const handleLoginSuccess = (user: UserAccount) => {
-    setCurrentUser(user);
+    const latestUser = users.find((u) => u.id === user.id) || user;
+    setCurrentUser(latestUser);
     setIsAuthenticated(true);
     localStorage.setItem('kp_isAuthenticated', 'true');
-    localStorage.setItem('kp_currentUser', JSON.stringify(user));
+    localStorage.setItem('kp_currentUser', JSON.stringify(latestUser));
 
-    if (user.role === 'superadmin') {
+    if (latestUser.role === 'superadmin') {
       setActiveTab('users');
-    } else if (user.role === 'pelaku_usaha') {
+    } else if (latestUser.role === 'pelaku_usaha') {
       setActiveTab('building_control');
-    } else if (user.role === 'petugas') {
+    } else if (latestUser.role === 'petugas') {
       setActiveTab('upload');
-    } else if (user.role === 'monitor') {
+    } else if (latestUser.role === 'monitor') {
       setActiveTab('dashboard');
     } else {
       setActiveTab('dashboard');
@@ -753,11 +946,11 @@ export default function App() {
     addComplianceEvent(
       'STATUS_UPDATED',
       'Pengguna Berhasil Masuk',
-      `Sesi login aktif untuk ${user.name} (${user.roleTitle}) dengan verifikasi kata sandi.`,
+      `Sesi login aktif untuk ${latestUser.name} (${latestUser.roleTitle}) dengan verifikasi kata sandi.`,
       'info',
-      user.name
+      latestUser.name
     );
-    showToast(`Selamat datang, ${user.name}! Anda masuk sebagai ${user.roleTitle}.`, 'success');
+    showToast(`Selamat datang, ${latestUser.name}! Anda masuk sebagai ${latestUser.roleTitle}.`, 'success');
   };
 
   // Logout handler
@@ -767,35 +960,56 @@ export default function App() {
     addComplianceEvent(
       'STATUS_UPDATED',
       'Sesi Pengguna Berakhir',
-      `Pengguna ${currentUser.name} telah keluar dari sistem.`,
+      `Pengguna ${activeCurrentUser.name} telah keluar dari sistem.`,
       'info',
-      currentUser.name
+      activeCurrentUser.name
     );
     showToast('Anda telah keluar dari sistem. Silakan masuk kembali.', 'info');
   };
 
   // Switch User Account (Super Admin only capability)
   const handleSwitchUser = (selectedUser: UserAccount) => {
-    if (currentUser.role !== 'superadmin') {
+    if (activeCurrentUser.role !== 'superadmin') {
       showToast('Akses ditolak: Hanya Super Admin yang berwenang beralih akun.', 'danger');
       return;
     }
 
-    setCurrentUser(selectedUser);
-    showToast(`Beralih akun ke: ${selectedUser.name} (${selectedUser.roleTitle})`, 'info');
-    if (selectedUser.role === 'superadmin') {
+    const latestSelectedUser = users.find((u) => u.id === selectedUser.id) || selectedUser;
+    setCurrentUser(latestSelectedUser);
+    showToast(`Beralih akun ke: ${latestSelectedUser.name} (${latestSelectedUser.roleTitle})`, 'info');
+    if (latestSelectedUser.role === 'superadmin') {
       setActiveTab('users');
-    } else if (selectedUser.role === 'pelaku_usaha') {
+    } else if (latestSelectedUser.role === 'pelaku_usaha') {
       setActiveTab('building_control');
-    } else if (selectedUser.role === 'petugas') {
+    } else if (latestSelectedUser.role === 'petugas') {
       setActiveTab('upload');
-    } else if (selectedUser.role === 'monitor') {
+    } else if (latestSelectedUser.role === 'monitor') {
       setActiveTab('dashboard');
-    } else if (selectedUser.role === 'koordinator') {
+    } else if (latestSelectedUser.role === 'koordinator') {
       if (activeTab === 'upload' || activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'users' || activeTab === 'building_control') {
         setActiveTab('dashboard');
       }
     }
+  };
+
+  // Update active user's own profile (e.g., No. HP / Nama)
+  const handleUpdateOwnProfile = (updates: { name?: string; phone?: string }) => {
+    const updatedUser: UserAccount = {
+      ...activeCurrentUser,
+      name: updates.name !== undefined ? updates.name.trim() || activeCurrentUser.name : activeCurrentUser.name,
+      phone: updates.phone !== undefined ? updates.phone.trim() || undefined : activeCurrentUser.phone
+    };
+
+    setUsers(prev => {
+      const exists = prev.some(u => u.id === updatedUser.id);
+      if (exists) {
+        return prev.map(u => (u.id === updatedUser.id ? updatedUser : u));
+      }
+      return [...prev, updatedUser];
+    });
+    setCurrentUser(updatedUser);
+    localStorage.setItem('kp_currentUser', JSON.stringify(updatedUser));
+    showToast(`Profil ${updatedUser.name} berhasil diperbarui!`, 'success');
   };
 
   // User Management Handlers (Super Admin)
@@ -1048,9 +1262,10 @@ export default function App() {
         permits={permits}
         lkpmRecords={lkpmRecords}
         companies={companies}
-        currentUser={currentUser}
+        currentUser={activeCurrentUser}
         users={users}
         onSwitchUser={handleSwitchUser}
+        onUpdateProfile={handleUpdateOwnProfile}
         onLogout={handleLogout}
         onClearAllData={handleClearAllData}
         onQuickAddPermit={() => setActiveTab('upload')}
@@ -1169,10 +1384,14 @@ export default function App() {
             permits={permits}
             lkpmRecords={lkpmRecords}
             savedLetters={warningLetters}
-            currentUserRole={currentUser.role}
-            currentUserName={currentUser.name}
-            currentUserPhone={currentUser.phone}
+            currentUserRole={activeCurrentUser.role}
+            currentUserName={activeCurrentUser.name}
+            currentUserPhone={activeCurrentUser.phone || ''}
+            onUpdateUserPhone={(phone) => handleUpdateOwnProfile({ phone })}
             initialItem={activeLetterItem}
+            onUpsertLetter={handleUpsertLetter}
+            onDeleteLetter={handleDeleteLetter}
+            onSyncPermitFromLetter={handleSyncPermitFromLetter}
             onSaveLetter={handleSaveLetter}
             onSendEmailWithLetter={(letter) => {
               handleSaveLetter(letter);
