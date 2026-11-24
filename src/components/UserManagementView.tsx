@@ -29,7 +29,8 @@ import {
   HelpCircle,
   Server,
   FolderArchive,
-  ExternalLink
+  ExternalLink,
+  Phone
 } from 'lucide-react';
 import { UserAccount, UserRole } from '../types';
 
@@ -80,6 +81,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     name: '',
     username: '',
     email: '',
+    phone: '',
     password: '',
     role: 'petugas' as UserRole,
   });
@@ -149,6 +151,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       name: formData.name.trim(),
       username: formData.username.trim().toLowerCase(),
       email: formData.email.trim(),
+      phone: formData.phone.trim() || undefined,
       password: formData.password.trim(),
       role: formData.role,
       roleTitle: roleInfo.title,
@@ -163,6 +166,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         name: '',
         username: '',
         email: '',
+        phone: '',
         password: '',
         role: 'petugas'
       });
@@ -185,6 +189,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       name: editingUser.name.trim(),
       username: editingUser.username.trim().toLowerCase(),
       email: editingUser.email.trim(),
+      phone: editingUser.phone?.trim() || undefined,
       password: editingUser.password.trim(),
       roleTitle: roleInfo.title,
       description: roleInfo.desc,
@@ -216,6 +221,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.roleTitle.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -835,6 +841,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           <Mail className="w-3 h-3 text-slate-400" />
                           <span>{user.email}</span>
                         </div>
+                        {user.phone && (
+                          <div className="text-[11px] text-slate-500 flex items-center space-x-1 mt-0.5 font-mono">
+                            <Phone className="w-3 h-3 text-emerald-500" />
+                            <span>{user.phone}</span>
+                          </div>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 whitespace-nowrap">
@@ -1028,26 +1040,41 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kata Sandi Login <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    No. HP / WhatsApp
+                  </label>
                   <input
-                    type={showFormPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Minimal 6 karakter"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full text-xs font-mono p-2.5 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    type="tel"
+                    placeholder="Contoh: 0812-3456-7890"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full text-xs font-mono p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowFormPassword(!showFormPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showFormPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kata Sandi Login <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showFormPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Minimal 6 karakter"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full text-xs font-mono p-2.5 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowFormPassword(!showFormPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showFormPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1199,17 +1226,32 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kata Sandi Baru / Konfirmasi <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editingUser.password}
-                  onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
-                  className="w-full text-xs font-mono p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    No. HP / WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="Contoh: 0812-3456-7890"
+                    value={editingUser.phone || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                    className="w-full text-xs font-mono p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kata Sandi Baru / Konfirmasi <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingUser.password}
+                    onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+                    className="w-full text-xs font-mono p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
               </div>
 
               <div>

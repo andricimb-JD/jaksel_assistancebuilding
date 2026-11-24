@@ -31,6 +31,7 @@ interface WarningLetterGeneratorProps {
   savedLetters: WarningLetter[];
   currentUserRole?: UserRole;
   currentUserName?: string;
+  currentUserPhone?: string;
   initialItem?: { type: 'PERMIT' | 'LKPM' | 'DUAL_VIOLATION'; record: any } | null;
   onSaveLetter: (letter: WarningLetter) => void;
   onSendEmailWithLetter: (letter: WarningLetter) => void;
@@ -119,6 +120,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   savedLetters: _savedLetters,
   currentUserRole = 'koordinator',
   currentUserName = '',
+  currentUserPhone = '',
   initialItem,
   onSaveLetter,
   onSendEmailWithLetter
@@ -184,6 +186,7 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
   const [bullet3Rest, setBullet3Rest] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.bullet3Rest);
   const [supportText, setSupportText] = useState<string>(TEMPLATE_PRESETS.SLF_RKK.supportText);
   const [picOfficerName, setPicOfficerName] = useState<string>(currentUserName || 'Petugas PTSP');
+  const [picOfficerPhone, setPicOfficerPhone] = useState<string>(currentUserPhone || '');
   const [closingText, setClosingText] = useState<string>(
     'Demikian pemberitahuan ini disampaikan untuk menjadi perhatian dan dapat ditindaklanjuti. Atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.'
   );
@@ -199,6 +202,10 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
       setPicOfficerName(currentUserName);
     }
   }, [currentUserName]);
+
+  useEffect(() => {
+    setPicOfficerPhone(currentUserPhone || '');
+  }, [currentUserPhone]);
 
   // Tembusan
   const [copies, setCopies] = useState<string[]>([
@@ -977,14 +984,28 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
             <p>
               Untuk informasi lebih lanjut mengenai persyaratan dan mekanisme pengurusan {preset.contactScope}, Saudara dapat memanfaatkan kanal pelayanan DPMPTSP Provinsi DKI Jakarta atau PIC pada UP. PMPTSP Kota Administrasi Jakarta Selatan Sdr.{' '}
               {isEditMode ? (
-                <input
-                  type="text"
-                  value={picOfficerName}
-                  onChange={(e) => setPicOfficerName(e.target.value)}
-                  className="inline-block w-48 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-semibold"
-                />
+                <>
+                  <input
+                    type="text"
+                    value={picOfficerName}
+                    onChange={(e) => setPicOfficerName(e.target.value)}
+                    className="inline-block w-48 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-semibold"
+                  />
+                  {' '}(No. HP:{' '}
+                  <input
+                    type="tel"
+                    value={picOfficerPhone}
+                    onChange={(e) => setPicOfficerPhone(e.target.value)}
+                    placeholder="0812-XXXX-XXXX"
+                    className="inline-block w-36 border border-dashed border-amber-400 bg-amber-50/40 rounded px-1.5 py-0.5 text-[12px] font-mono"
+                  />
+                  )
+                </>
               ) : (
-                <span className="font-semibold">{picOfficerName}</span>
+                <>
+                  <span className="font-semibold">{picOfficerName}</span>
+                  {picOfficerPhone.trim() ? ` (No. HP: ${picOfficerPhone.trim()})` : ''}
+                </>
               )}
               {' '}atau dapat mengajukan permohonan pendampingan dengan mengunjungi website{' '}
               <a

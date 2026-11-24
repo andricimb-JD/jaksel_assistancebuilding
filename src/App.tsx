@@ -1171,6 +1171,7 @@ export default function App() {
             savedLetters={warningLetters}
             currentUserRole={currentUser.role}
             currentUserName={currentUser.name}
+            currentUserPhone={currentUser.phone}
             initialItem={activeLetterItem}
             onSaveLetter={handleSaveLetter}
             onSendEmailWithLetter={(letter) => {
