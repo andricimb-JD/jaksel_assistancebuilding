@@ -202,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-sky-200 to-white bg-clip-text text-transparent">
-                  <span className="text-emerald-400">Jaksel</span> Building Asistance
+                  <span className="text-emerald-400">Jaksel</span> Building Assistance
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
