@@ -82,7 +82,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     selected: boolean; 
     fileName: string | null;
     permitNumber?: string;
-    validity?: 'berlaku' | 'habis';
+    validity?: 'berlaku' | 'habis' | 'ada' | 'tidak_ada';
     damkarRkk?: boolean;
     damkarSkk?: boolean;
     reklameJenis?: 'Papan / Billboard' | 'Megatron / Videotron / LED' | 'Neon Box / Signage';
@@ -98,10 +98,11 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       reklameJenisList: ['Papan / Billboard']
     },
     slf: { name: 'Sertifikat Laik Fungsi (SLF)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' },
-    pbg: { name: 'Persetujuan Bangunan Gedung (PBG / IMB)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' },
+    pbg: { name: 'Persetujuan Bangunan Gedung (PBG / IMB)', selected: false, fileName: null, permitNumber: '', validity: undefined },
     damkar: { name: 'Proteksi Kebakaran (Damkar)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku', damkarRkk: false, damkarSkk: false },
     k3: { name: 'Izin K3 Instalasi (Lift, Genset, Petir)', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' },
-    env: { name: 'Persetujuan Lingkungan & Andalalin', selected: false, fileName: null, permitNumber: '', validity: 'berlaku' }
+    env: { name: 'Persetujuan Lingkungan', selected: false, fileName: null, permitNumber: '', validity: undefined },
+    andalalin: { name: 'Andalalin (Analisis Dampak Lalu Lintas)', selected: false, fileName: null, permitNumber: '', validity: undefined }
   });
 
   // Step 3: Checkbox Persyaratan Teknis yang sudah siap ('ada' | 'tidak_ada')
@@ -111,7 +112,8 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     pbg: {},
     damkar: {},
     k3: {},
-    env: {}
+    env: {},
+    andalalin: {}
   });
 
   // Modals
@@ -323,13 +325,21 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       ]
     },
     env: {
-      title: 'Syarat Dokumen Lingkungan & Andalalin',
+      title: 'Syarat Dokumen Persetujuan Lingkungan',
       icon: Leaf,
       color: 'emerald',
       questions: [
         'Apakah dokumen lingkungan (AMDAL / UKL-UPL / SPPL) telah terdaftar di sistem AMDALNET / KLHK?',
-        'Apakah sarana IPAL (Pengolahan Air Limbah) memiliki izin baku mutu / IPLC?',
-        'Apakah telah dilakukan kajian dampak lalu lintas (Andalalin) dengan Dinas Perhubungan?'
+        'Apakah sarana IPAL (Pengolahan Air Limbah) memiliki izin baku mutu / IPLC?'
+      ]
+    },
+    andalalin: {
+      title: 'Syarat Dokumen Andalalin (Analisis Dampak Lalu Lintas)',
+      icon: MapPin,
+      color: 'sky',
+      questions: [
+        'Apakah telah dilakukan kajian dampak lalu lintas (Andalalin) sesuai skala bangkitan gedung?',
+        'Apakah sudah mendapatkan rekomendasi/persetujuan teknis Andalalin dari Dinas Perhubungan atau Kemenhub?'
       ]
     },
     reklame: {
@@ -389,15 +399,23 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     }
   };
 
+  const existenceOnlyKeys = new Set(['pbg', 'env', 'andalalin']);
+
   // Toggle Permit card in Step 2
   const togglePermitCard = (key: string) => {
-    setPermitStates(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        selected: !prev[key].selected
-      }
-    }));
+    setPermitStates(prev => {
+      const nextSelected = !prev[key].selected;
+      return {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          selected: nextSelected,
+          validity: existenceOnlyKeys.has(key)
+            ? (nextSelected ? 'ada' : 'tidak_ada')
+            : (nextSelected ? 'berlaku' : 'berlaku')
+        }
+      };
+    });
   };
 
   // Handle local file upload simulation
@@ -408,7 +426,8 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
         ...prev,
         [key]: {
           ...prev[key],
-          selected: true,
+          selected: prev[key].validity === 'habis' ? false : true,
+          validity: existenceOnlyKeys.has(key) ? 'ada' : prev[key].validity,
           fileName: file.name
         }
       }));
@@ -427,13 +446,13 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     }));
   };
 
-  // Handle setting permit validity ('berlaku' | 'habis')
-  const handleSetPermitValidity = (key: string, validity: 'berlaku' | 'habis') => {
+  // Handle setting permit validity ('berlaku' | 'habis' | 'ada' | 'tidak_ada')
+  const handleSetPermitValidity = (key: string, validity: 'berlaku' | 'habis' | 'ada' | 'tidak_ada') => {
     setPermitStates(prev => ({
       ...prev,
       [key]: {
         ...prev[key],
-        selected: true,
+        selected: validity === 'tidak_ada' || validity === 'habis' ? false : true,
         validity
       }
     }));
@@ -446,7 +465,16 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       [key]: {
         ...prev[key],
         permitNumber,
-        selected: permitNumber.trim().length > 0 ? true : prev[key]?.selected
+        selected:
+          prev[key]?.validity === 'habis'
+            ? false
+            : permitNumber.trim().length > 0
+            ? true
+            : prev[key]?.selected,
+        validity:
+          permitNumber.trim().length > 0 && existenceOnlyKeys.has(key)
+            ? 'ada'
+            : prev[key]?.validity
       }
     }));
   };
@@ -458,7 +486,8 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       case 'pbg': return 'Contoh: SK-PBG-317401-12052022-001 atau No. 1234/IMB/JS/2019';
       case 'damkar': return 'Contoh: 551.2/SKK-DAMKAR/JS/2023 atau Rekom RKK-089/2023';
       case 'k3': return 'Contoh: KEP.45/DISNAKER-DKI/K3-LIFT/2023 atau K3-GENSET-012/2024';
-      case 'env': return 'Contoh: SK.AMDAL-660.1/JS/2022 atau Rekom-Andalalin/890/2023';
+      case 'env': return 'Contoh: SK.AMDAL-660.1/JS/2022 atau UKL-UPL-045/2023';
+      case 'andalalin': return 'Contoh: Rekom-Andalalin/890/DISHUB/2023';
       case 'reklame': return 'Contoh: IPR/2024/0981/PTSP-JS atau SKPD Reklame 12345/2024';
       default: return 'Nomor surat keputusan / sertifikat izin...';
     }
@@ -475,7 +504,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
         damkar: {
           ...currentDamkar,
           [subDoc]: nextVal,
-          selected: willHaveAny || currentDamkar.selected
+          selected: currentDamkar.validity === 'habis' ? false : (willHaveAny || currentDamkar.selected)
         }
       };
     });
@@ -487,7 +516,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       ...prev,
       reklame: {
         ...prev.reklame,
-        selected: true,
+        selected: prev.reklame.validity === 'habis' ? false : true,
         reklameJenis: jenis,
         reklameJenisList: [jenis]
       }
@@ -510,7 +539,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
         ...prev,
         reklame: {
           ...prev.reklame,
-          selected: true,
+          selected: prev.reklame.validity === 'habis' ? false : true,
           reklameJenis: nextList[0] || jenis,
           reklameJenisList: nextList
         }
@@ -556,7 +585,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
     return k !== 'reklame' && permitStates[k].selected;
   }).length;
   const uploadedFilesCount = Object.keys(permitStates).filter(k => permitStates[k].fileName !== null).length;
-  const totalPermitsCount = ownershipRole === 'Hanya Pemilik Prasarana' ? 1 : 5;
+  const totalPermitsCount = ownershipRole === 'Hanya Pemilik Prasarana' ? 1 : 6;
 
   const buildingName = currentUser.buildingName || currentUser.companyName || 'Gedung Surya Tower';
   const districtName = 'Jakarta Selatan';
@@ -591,7 +620,14 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
       notes: consultationForm.notes,
       ownedPermits: Object.keys(permitStates).filter(k => permitStates[k].selected).map(k => {
         const p = permitStates[k];
-        const valText = p.validity === 'habis' ? ' (Habis Masa Berlaku)' : ' (Masih Berlaku)';
+        const valText =
+          p.validity === 'habis'
+            ? ' (Habis Masa Berlaku)'
+            : p.validity === 'ada'
+            ? ' (Ada)'
+            : p.validity === 'tidak_ada'
+            ? ' (Tidak Ada)'
+            : ' (Masih Berlaku)';
         const numText = p.permitNumber?.trim() ? ` [No: ${p.permitNumber.trim()}]` : '';
         const damkarExtra = k === 'damkar' && (p.damkarRkk || p.damkarSkk)
           ? ` [${[p.damkarRkk && 'RKK', p.damkarSkk && 'SKK'].filter(Boolean).join(', ')}]`
@@ -1433,17 +1469,19 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                   </p>
                 </div>
 
-                {/* 5 Permit Items */}
+                {/* 6 Permit Items */}
                 <div className="space-y-3">
                   {[
-                    { key: 'slf', title: 'Sertifikat Laik Fungsi (SLF)', desc: 'Gedung sudah memiliki sertifikat kelaikan operasi berkala resmi.' },
-                    { key: 'pbg', title: 'Persetujuan Bangunan Gedung (PBG / IMB)', desc: 'Memiliki surat izin konstruksi fisik & arsitektur resmi terdahulu.' },
-                    { key: 'damkar', title: 'Proteksi Kebakaran (Damkar)', desc: 'Memiliki sertifikasi berkala instalasi proteksi kebakaran aktif/pasif.' },
-                    { key: 'k3', title: 'Izin K3 Instalasi (Lift, Genset, Petir)', desc: 'Telah memiliki pengesahan riksa uji instalasi dari Disnakertrans DKI.' },
-                    { key: 'env', title: 'Persetujuan Lingkungan & Andalalin', desc: 'Memiliki persetujuan teknis AMDAL/UKL-UPL dan rekomendasi lalu lintas.' }
+                    { key: 'slf', title: 'Sertifikat Laik Fungsi (SLF)', desc: 'Gedung sudah memiliki sertifikat kelaikan operasi berkala resmi.', hasExpiry: true },
+                    { key: 'pbg', title: 'Persetujuan Bangunan Gedung (PBG / IMB)', desc: 'Memiliki surat izin konstruksi fisik & arsitektur resmi terdahulu.', hasExpiry: false },
+                    { key: 'damkar', title: 'Proteksi Kebakaran (Damkar)', desc: 'Memiliki sertifikasi berkala instalasi proteksi kebakaran aktif/pasif.', hasExpiry: true },
+                    { key: 'k3', title: 'Izin K3 Instalasi (Lift, Genset, Petir)', desc: 'Telah memiliki pengesahan riksa uji instalasi dari Disnakertrans DKI.', hasExpiry: true },
+                    { key: 'env', title: 'Persetujuan Lingkungan', desc: 'Memiliki dokumen & persetujuan teknis lingkungan (AMDAL / UKL-UPL / SPPL).', hasExpiry: false },
+                    { key: 'andalalin', title: 'Andalalin (Analisis Dampak Lalu Lintas)', desc: 'Memiliki kajian & rekomendasi teknis dampak lalu lintas dari Dinas Perhubungan.', hasExpiry: false }
                   ].map((item) => {
                     const state = permitStates[item.key];
                     const isDamkar = item.key === 'damkar';
+                    const isExistenceOnly = !item.hasExpiry;
 
                     return (
                       <div 
@@ -1467,69 +1505,126 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                           <div className="flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                               <h4 className="text-xs sm:text-sm font-bold text-slate-900">{item.title}</h4>
-                              {state.selected && (
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border inline-flex items-center gap-1 self-start sm:self-auto ${
-                                  state.validity === 'habis'
-                                    ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                }`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${
-                                    state.validity === 'habis' ? 'bg-amber-600' : 'bg-emerald-600'
-                                  }`} />
-                                  <span>{state.validity === 'habis' ? 'Habis Masa Berlaku' : 'Masih Berlaku'}</span>
-                                </span>
+                              {isExistenceOnly ? (
+                                (state.selected || state.validity === 'tidak_ada') && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border inline-flex items-center gap-1 self-start sm:self-auto ${
+                                    state.selected && state.validity !== 'tidak_ada'
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                      : 'bg-rose-100 text-rose-800 border-rose-300'
+                                  }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                      state.selected && state.validity !== 'tidak_ada' ? 'bg-emerald-600' : 'bg-rose-600'
+                                    }`} />
+                                    <span>{state.selected && state.validity !== 'tidak_ada' ? 'Ada' : 'Tidak Ada'}</span>
+                                  </span>
+                                )
+                              ) : (
+                                (state.selected || state.validity === 'habis') && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border inline-flex items-center gap-1 self-start sm:self-auto ${
+                                    state.validity === 'habis'
+                                      ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                      : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                      state.validity === 'habis' ? 'bg-rose-600' : 'bg-emerald-600'
+                                    }`} />
+                                    <span>{state.validity === 'habis' ? 'Habis Masa Berlaku (Tidak Ada)' : 'Masih Berlaku'}</span>
+                                  </span>
+                                )
                               )}
                             </div>
                             <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
                           </div>
                         </div>
 
-                        {/* Pilihan Masa Berlaku (Masing-Masing Izin Eksisting) */}
+                        {/* Pilihan Status Kepemilikan (Ada / Tidak Ada) atau Masa Berlaku */}
                         <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5 text-slate-500" />
-                            <span>Masa Berlaku Izin:</span>
+                            <span>{isExistenceOnly ? 'Ketersediaan Dokumen:' : 'Masa Berlaku Izin:'}</span>
                           </span>
 
-                          <div className="flex items-center gap-2">
-                            {/* Tombol Masih Berlaku */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSetPermitValidity(item.key, 'berlaku');
-                              }}
-                              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer select-none ${
-                                state.selected && (state.validity === 'berlaku' || !state.validity)
-                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-200'
-                                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700'
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                                state.selected && (state.validity === 'berlaku' || !state.validity) ? 'bg-white' : 'bg-emerald-500'
-                              }`} />
-                              <span>Masih Berlaku</span>
-                            </button>
+                          {isExistenceOnly ? (
+                            <div className="flex items-center gap-2">
+                              {/* Tombol Ada */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSetPermitValidity(item.key, 'ada');
+                                }}
+                                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer select-none ${
+                                  state.selected && state.validity !== 'tidak_ada'
+                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-200'
+                                    : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700'
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                  state.selected && state.validity !== 'tidak_ada' ? 'bg-white' : 'bg-emerald-500'
+                                }`} />
+                                <span>Ada</span>
+                              </button>
 
-                            {/* Tombol Habis Masa Berlaku */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSetPermitValidity(item.key, 'habis');
-                              }}
-                              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer select-none ${
-                                state.selected && state.validity === 'habis'
-                                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-200'
-                                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800'
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                                state.selected && state.validity === 'habis' ? 'bg-white' : 'bg-amber-500'
-                              }`} />
-                              <span>Habis Masa Berlaku</span>
-                            </button>
-                          </div>
+                              {/* Tombol Tidak Ada */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSetPermitValidity(item.key, 'tidak_ada');
+                                }}
+                                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer select-none ${
+                                  !state.selected && state.validity === 'tidak_ada'
+                                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-2 ring-rose-200'
+                                    : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700'
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                  !state.selected && state.validity === 'tidak_ada' ? 'bg-white' : 'bg-rose-500'
+                                }`} />
+                                <span>Tidak Ada</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {/* Tombol Masih Berlaku */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSetPermitValidity(item.key, 'berlaku');
+                                }}
+                                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer select-none ${
+                                  state.selected && state.validity !== 'habis'
+                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-200'
+                                    : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700'
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                  state.selected && state.validity !== 'habis' ? 'bg-white' : 'bg-emerald-500'
+                                }`} />
+                                <span>Masih Berlaku</span>
+                              </button>
+
+                              {/* Tombol Habis Masa Berlaku */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSetPermitValidity(item.key, 'habis');
+                                }}
+                                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer select-none ${
+                                  state.validity === 'habis'
+                                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-2 ring-rose-200'
+                                    : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-800'
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                  state.validity === 'habis' ? 'bg-white' : 'bg-rose-500'
+                                }`} />
+                                <span>Habis Masa Berlaku</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Input Nomor Izin / Sertifikat Resmi */}
@@ -2163,7 +2258,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-900">Status {totalPermitsCount} Izin Eksisting Gedung</h4>
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                ownedPermitsCount >= 5 
+                ownedPermitsCount >= totalPermitsCount 
                   ? 'bg-emerald-100 text-emerald-800' 
                   : ownedPermitsCount >= 3 
                   ? 'bg-amber-100 text-amber-800' 
@@ -2175,9 +2270,10 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
 
             <div className="space-y-2 pt-1">
               {[
-                { name: 'Sertifikat Laik Fungsi (SLF)', state: permitStates.slf },
-                { name: 'Persetujuan Bangunan Gedung (PBG/IMB)', state: permitStates.pbg },
+                { key: 'slf', name: 'Sertifikat Laik Fungsi (SLF)', state: permitStates.slf },
+                { key: 'pbg', name: 'Persetujuan Bangunan Gedung (PBG/IMB)', state: permitStates.pbg },
                 { 
+                  key: 'damkar',
                   name: `Proteksi Kebakaran (Damkar)${
                     permitStates.damkar?.selected && (permitStates.damkar?.damkarRkk || permitStates.damkar?.damkarSkk)
                       ? ` [${[permitStates.damkar.damkarRkk && 'RKK', permitStates.damkar.damkarSkk && 'SKK'].filter(Boolean).join(', ')}]`
@@ -2185,9 +2281,11 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                   }`, 
                   state: permitStates.damkar 
                 },
-                { name: 'Izin K3 Instalasi (Lift & Genset)', state: permitStates.k3 },
-                { name: 'Persetujuan Lingkungan & Andalalin', state: permitStates.env },
+                { key: 'k3', name: 'Izin K3 Instalasi (Lift & Genset)', state: permitStates.k3 },
+                { key: 'env', name: 'Persetujuan Lingkungan', state: permitStates.env },
+                { key: 'andalalin', name: 'Andalalin (Analisis Dampak Lalu Lintas)', state: permitStates.andalalin },
                 {
+                  key: 'reklame',
                   name: `Izin Penyelenggaraan Reklame (IPR)${
                     permitStates.reklame?.selected && permitStates.reklame?.reklameJenis
                       ? ` [${permitStates.reklame.reklameJenis}]`
@@ -2197,17 +2295,20 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                 }
               ].map((item, idx) => {
                 const isOwned = item.state?.selected;
-                const isHabis = item.state?.validity === 'habis';
+                const isExistenceOnly = existenceOnlyKeys.has(item.key);
+                const isHabis = !isExistenceOnly && item.state?.validity === 'habis';
+                const isTidakAda = isExistenceOnly && !isOwned && item.state?.validity === 'tidak_ada';
+
                 return (
                   <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-xl bg-slate-50 border border-slate-150">
                     <div className="flex flex-col min-w-0 mr-2">
                       <div className="flex items-center space-x-2 truncate">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${
-                          !isOwned ? 'bg-slate-300' : isHabis ? 'bg-amber-500' : 'bg-emerald-500'
+                          isTidakAda || isHabis ? 'bg-rose-500' : !isOwned ? 'bg-slate-300' : 'bg-emerald-500'
                         }`} />
                         <span className={`truncate ${isOwned ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{item.name}</span>
                       </div>
-                      {isOwned && item.state?.permitNumber && item.state.permitNumber.trim() && (
+                      {(isOwned || isHabis) && item.state?.permitNumber && item.state.permitNumber.trim() && (
                         <div className="pl-4 mt-0.5 text-[10px] font-mono text-slate-600 truncate flex items-center gap-1">
                           <span className="text-slate-400">No:</span>
                           <span className="font-semibold text-[#0c406d]">{item.state.permitNumber.trim()}</span>
@@ -2215,13 +2316,21 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                       )}
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 border ${
-                      !isOwned 
+                      isTidakAda || isHabis
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : !isOwned 
                         ? 'bg-slate-200/70 text-slate-500 border-slate-200' 
-                        : isHabis 
-                        ? 'bg-amber-100 text-amber-800 border-amber-300' 
                         : 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     }`}>
-                      {!isOwned ? 'Perlu Diisi' : isHabis ? 'Habis Masa Berlaku' : 'Masih Berlaku'}
+                      {isTidakAda
+                        ? 'Tidak Ada'
+                        : isHabis
+                        ? 'Habis (Tidak Ada)'
+                        : !isOwned
+                        ? 'Perlu Diisi'
+                        : isExistenceOnly
+                        ? 'Ada'
+                        : 'Masih Berlaku'}
                     </span>
                   </div>
                 );
