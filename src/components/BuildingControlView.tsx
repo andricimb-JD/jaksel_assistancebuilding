@@ -747,17 +747,15 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
             <section className="flex-1 flex flex-col justify-between animate-fade-in">
               <div>
 
-                {/* 4D Digital Twin Interactive Viewer */}
+                {/* Banner Utama Jaksel Building Assistance */}
                 <div className="mb-5">
-                  <Building4DViewer
-                    buildingName={buildingName}
-                    buildingType={selectedBuilding}
-                    companyName={currentUser.companyName}
-                    nib={currentUser.nib}
-                    address={currentUser.address}
-                    permitStates={permitStates}
-                    onOpenConsultation={() => setShowConsultationModal(true)}
-                  />
+                  <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-md">
+                    <img
+                      src="/assets/aistudio/Gemini_Generated_Image_62ruke62ruke62ru_76c139de.jpg"
+                      alt="Jaksel Building Assistance - Pendampingan Gedung Jakarta Selatan"
+                      className="w-full h-[190px] sm:h-[220px] object-cover object-top block"
+                    />
+                  </div>
                 </div>
 
                 {/* Building Profile Card */}
@@ -1338,7 +1336,8 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                       id: 'Perkantoran', 
                       label: 'Perkantoran', 
                       desc: 'Menara kantor komersial, gedung instansi & bisnis', 
-                      icon: Building2, 
+                      icon: Building2,
+                      image: '/assets/aistudio/png-transparent-building-office-computer-icons-building-angle-building-window-thumbnail_c3bfe6e9.png',
                       color: 'from-blue-600 to-indigo-700'
                     },
                     { 
@@ -1346,6 +1345,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                       label: 'Pusat perbelanjaan / Mall', 
                       desc: 'Mall gaya hidup, pusat pertokoan & ritel komersial', 
                       icon: Store, 
+                      image: '/assets/aistudio/images__8__438d34c9.jpg',
                       color: 'from-amber-500 to-orange-600'
                     },
                     { 
@@ -1353,6 +1353,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                       label: 'Hotel & Penginapan', 
                       desc: 'Hotel bintang, kondotel & akomodasi komersial', 
                       icon: Bed, 
+                      image: '/assets/aistudio/images__11__ed541483.jpg',
                       color: 'from-violet-600 to-purple-700'
                     },
                     { 
@@ -1360,20 +1361,22 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                       label: 'Apartemen & Hunian Vertikal', 
                       desc: 'Hunian bertingkat tinggi & kondominium', 
                       icon: Building, 
+                      image: '/assets/aistudio/images__10__1e4476cb.jpg',
                       color: 'from-sky-500 to-cyan-600'
                     },
                     { 
                       id: 'Bangunan industri / pergudangan', 
                       label: 'Bangunan industri / pergudangan', 
                       desc: 'Pabrik manufaktur, logistik & gudang modern', 
-                      icon: Factory,
+                      icon: Factory, 
+                      image: '/assets/aistudio/images__12__d6d12ccb.jpg',
                       color: 'from-slate-600 to-slate-800'
                     },
                     { 
                       id: 'Fungsi lainnya', 
                       label: 'Fungsi lainnya (Fasilitas Sosial/Umum)', 
                       desc: 'Rumah sakit, universitas, sarana olahraga/budaya', 
-                      icon: MoreHorizontal,
+                      icon: MoreHorizontal, 
                       color: 'from-teal-600 to-emerald-700'
                     }
                   ].map((item) => {
@@ -1406,9 +1409,19 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                         </div>
 
                         {/* 3D Isometric Icon Badge */}
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white shrink-0 shadow-sm border-t border-l border-white/40 border-b-2 border-r-2 border-black/20`}>
-                          <Icon className="w-5 h-5 drop-shadow-sm" />
-                        </div>
+                        {'image' in item && item.image ? (
+                          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-sm p-0.5 overflow-hidden">
+                            <img
+                              src={item.image}
+                              alt={item.label}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white shrink-0 shadow-sm border-t border-l border-white/40 border-b-2 border-r-2 border-black/20`}>
+                            <Icon className="w-5 h-5 drop-shadow-sm" />
+                          </div>
+                        )}
                       </label>
                     );
                   })}
