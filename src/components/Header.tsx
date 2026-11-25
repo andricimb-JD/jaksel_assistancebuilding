@@ -191,8 +191,12 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between py-3 border-b border-slate-800/80">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-emerald-400 p-0.5 shadow-lg shadow-sky-500/20 flex items-center justify-center">
-              <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-                <ShieldCheck className="w-6 h-6 text-sky-400" />
+              <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center p-0.5 overflow-hidden">
+                <img
+                  src="/assets/aistudio/Gemini_Generated_Image_4pl6xe4pl6xe4pl6-removebg-preview_b2ad12aa.png"
+                  alt="Logo Jaksel Building Assistance"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
             <div>

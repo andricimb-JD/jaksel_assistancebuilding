@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, 
   Lock, 
   User, 
   Eye, 
@@ -177,9 +176,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
         {/* App Logo */}
-        <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-emerald-400 p-0.5 shadow-xl shadow-sky-500/20 items-center justify-center mb-4">
-          <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-            <ShieldCheck className="w-9 h-9 text-sky-400" />
+        <div className="inline-flex w-20 h-20 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-emerald-400 p-0.5 shadow-xl shadow-sky-500/20 items-center justify-center mb-4">
+          <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center p-1.5 overflow-hidden">
+            <img
+              src="/assets/aistudio/Gemini_Generated_Image_4pl6xe4pl6xe4pl6-removebg-preview_b2ad12aa.png"
+              alt="Logo Jaksel Building Assistance"
+              className="w-full h-full object-contain"
+            />
           </div>
         </div>
 
@@ -187,7 +190,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <span className="text-emerald-400">Jaksel</span> Building Asistance
         </h2>
         <p className="mt-1 text-xs text-slate-400 font-medium">
-          Sistem Pengingat Masa Berlaku Perizinan &amp; Kepatuhan LKPM Terpadu OSS-RBA
+          Sistem Pengingat Masa Berlaku Perizinan &amp; Kepatuhan LKPM Terpadu
         </p>
 
         <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">

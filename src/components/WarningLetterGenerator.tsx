@@ -16,7 +16,8 @@ import {
   FolderOpen,
   FilePlus2,
   Search,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { WarningLetter, WarningLetterItem, Permit, LKPMRecord, Company, UserRole } from '../types';
@@ -813,6 +814,224 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
 
     setToastMessage(`Data surat "${letter.letterNumber}" dimuat dari database.`);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const escapeHtml = (val: string) =>
+    String(val || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const getKopLogoDataUrl = async (): Promise<string> => {
+    const logoUrl = `${window.location.origin}/assets/aistudio/download-removebg-preview_688696e1.png`;
+    try {
+      const resp = await fetch(logoUrl);
+      if (!resp.ok) return logoUrl;
+      const blob = await resp.blob();
+      return await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : logoUrl);
+        reader.onerror = () => resolve(logoUrl);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return logoUrl;
+    }
+  };
+
+  const handleDownloadLetterDoc = async (targetLetter?: WarningLetter) => {
+    const mode: LetterTemplateMode = targetLetter ? targetLetter.templateMode || 'SLF_RKK' : templateMode;
+    const p = TEMPLATE_PRESETS[mode];
+
+    const lNumber = targetLetter ? targetLetter.letterNumber || '-' : letterNumber;
+    const lSifat = targetLetter ? targetLetter.letterSifat || 'Penting' : letterSifat;
+    const lAttachment = targetLetter ? (targetLetter.letterAttachment ?? p.attachmentDefault) : letterAttachment;
+    const lSubject = targetLetter ? targetLetter.subject || p.subjectTitle : subjectTitle;
+    const lCity = targetLetter ? targetLetter.letterCity || 'Jakarta' : letterCity;
+    const lDate = targetLetter ? targetLetter.letterDate || letterDate : letterDate;
+    const rOwner = targetLetter ? targetLetter.recipientName || targetLetter.companyName || '-' : recipientOwnerName;
+    const rObject = targetLetter ? targetLetter.recipientRole || targetLetter.docBuildingName || '-' : recipientObjectName;
+    const rLoc = targetLetter ? targetLetter.recipientLocation || 'Jakarta' : recipientLocation;
+    const lOpening = targetLetter ? targetLetter.additionalNotes || p.openingText : openingText;
+
+    const dOwner = targetLetter ? targetLetter.companyName || '-' : docOwner;
+    const dBuilding = targetLetter ? targetLetter.docBuildingName || targetLetter.recipientRole || '-' : docBuildingName;
+    const dAddress = targetLetter ? targetLetter.companyAddress || '-' : docAddress;
+    const dPrimaryNum = targetLetter ? targetLetter.docPrimaryNumber || '' : docPrimaryNumber;
+    const dPrimaryDate = targetLetter ? targetLetter.docPrimaryDate || '' : docPrimaryDate;
+    const dPrimaryExp = targetLetter ? targetLetter.docPrimaryExpiry || '' : docPrimaryExpiry;
+    const dSecNumDate = targetLetter ? targetLetter.docSecondaryNumberDate || '' : docSecondaryNumberDate;
+    const dSecExp = targetLetter ? targetLetter.docSecondaryExpiry || '' : docSecondaryExpiry;
+
+    const pPicName = targetLetter ? targetLetter.picOfficerName || picOfficerName : picOfficerName;
+    const pPicPhone = targetLetter ? targetLetter.picOfficerPhone ?? picOfficerPhone : picOfficerPhone;
+
+    const rows = [
+      { label: 'Nama Pemilik Bangunan', value: dOwner },
+      { label: 'Nama Bangunan', value: dBuilding },
+      { label: 'Alamat Bangunan', value: dAddress },
+      { label: p.primaryDocLabel, value: dPrimaryNum },
+      { label: p.primaryDateLabel, value: dPrimaryDate },
+      { label: p.primaryExpiryLabel, value: dPrimaryExp },
+      { label: p.secondaryDocLabel, value: dSecNumDate },
+      { label: p.secondaryExpiryLabel, value: dSecExp }
+    ];
+
+    const kopLogoSrc = await getKopLogoDataUrl();
+    const formattedDate = formatIndonesianDate(lDate);
+    const picPhoneText = pPicPhone.trim() ? ` (No. HP: ${escapeHtml(pPicPhone.trim())})` : '';
+
+    const wordHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8" />
+  <title>Surat_${escapeHtml(lNumber)}</title>
+  <style>
+    @page { size: 215mm 330mm; margin: 12mm 15mm 14mm 15mm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.42; color: #000000; margin: 0; padding: 0; }
+    table { border-collapse: collapse; }
+    .kop-table { width: 100%; border-bottom: 3px solid #000000; }
+    .kop-subline { border-top: 1px solid #000000; margin-top: 2px; margin-bottom: 10px; }
+    .meta-table td { vertical-align: top; padding: 1px 4px 1px 0; font-size: 10.5pt; }
+    .doc-table { width: 100%; margin-top: 6px; margin-bottom: 10px; }
+    .doc-table td { border: 1px solid #000000; padding: 4px 8px; font-size: 10pt; vertical-align: middle; }
+    .doc-label { font-weight: bold; width: 42%; }
+    .indent { text-indent: 28px; text-align: justify; }
+    .justify { text-align: justify; }
+    ul { margin: 6px 0 8px 24px; padding-left: 12px; }
+    li { margin-bottom: 4px; text-align: justify; }
+    ol { margin: 2px 0 0 18px; padding-left: 12px; }
+  </style>
+</head>
+<body>
+  <table class="kop-table" style="width:100%;">
+    <tr>
+      <td style="width:95px; vertical-align:middle; padding-bottom:4px;">
+        <img src="${kopLogoSrc}" width="88" height="88" style="width:88px;height:88px;object-fit:contain;" alt="Logo Pemprov DKI Jakarta" />
+      </td>
+      <td style="text-align:center; vertical-align:middle; padding-bottom:4px;">
+        <div style="font-size:11.5pt; font-weight:bold; text-transform:uppercase; line-height:1.25;">${escapeHtml(senderOrganization)}</div>
+        <div style="font-size:11.5pt; font-weight:bold; text-transform:uppercase; line-height:1.25;">${escapeHtml(kopSubtitle)}</div>
+        <div style="font-size:11.5pt; font-weight:bold; text-transform:uppercase; line-height:1.25;">${escapeHtml(kopUnitCity)}</div>
+        <div style="font-size:9.5pt; margin-top:2px;">${escapeHtml(kopAddress)}</div>
+        <div style="font-size:9pt; text-align:right; margin-top:2px;">${escapeHtml(kopPostalCode)}</div>
+      </td>
+    </tr>
+  </table>
+  <div class="kop-subline"></div>
+
+  <table style="width:100%; margin-top:8px;">
+    <tr>
+      <td style="width:62%; vertical-align:top;">
+        <table class="meta-table">
+          <tr><td style="width:72px;">Nomor</td><td>:</td><td>${escapeHtml(lNumber)}</td></tr>
+          <tr><td>Sifat</td><td>:</td><td>${escapeHtml(lSifat)}</td></tr>
+          <tr><td>Lampiran</td><td>:</td><td>${escapeHtml(lAttachment)}</td></tr>
+          <tr><td>Hal</td><td>:</td><td style="font-weight:bold;">${escapeHtml(lSubject)}</td></tr>
+        </table>
+      </td>
+      <td style="width:38%; text-align:right; vertical-align:top; font-size:10.5pt;">
+        ${escapeHtml(lCity)}, ${escapeHtml(formattedDate)}
+      </td>
+    </tr>
+  </table>
+
+  <div style="margin-top:14px; font-size:10.5pt; line-height:1.4;">
+    <div>Yth.</div>
+    <div style="font-weight:bold;">${escapeHtml(rOwner)}</div>
+    <div>${escapeHtml(rObject)}</div>
+    <div>di</div>
+    <div>${escapeHtml(rLoc)}</div>
+  </div>
+
+  <p class="indent" style="margin-top:12px;">${escapeHtml(lOpening)}</p>
+
+  <div style="margin-top:8px;">Data dokumen yang tercatat adalah sebagai berikut:</div>
+  <table class="doc-table">
+    ${rows
+      .map(
+        (r) =>
+          `<tr><td class="doc-label">${escapeHtml(r.label)}</td><td>${escapeHtml(
+            r.value || '[................................................]'
+          )}</td></tr>`
+      )
+      .join('')}
+  </table>
+
+  <p class="justify" style="margin-top:8px;">${escapeHtml(
+    mode === (targetLetter?.templateMode || templateMode) ? reminderLeadText : p.reminderLeadText
+  )}</p>
+  <ul>
+    <li><strong>${escapeHtml(mode === templateMode ? bullet1Bold : p.bullet1Bold)}</strong>${escapeHtml(
+      mode === templateMode ? bullet1Rest : p.bullet1Rest
+    )}</li>
+    <li><strong>${escapeHtml(mode === templateMode ? bullet2Bold : p.bullet2Bold)}</strong>${escapeHtml(
+      mode === templateMode ? bullet2Rest : p.bullet2Rest
+    )}</li>
+    <li><strong>${escapeHtml(mode === templateMode ? bullet3Bold : p.bullet3Bold)}</strong>${escapeHtml(
+      mode === templateMode ? bullet3Rest : p.bullet3Rest
+    )}</li>
+  </ul>
+
+  <p class="justify">${escapeHtml(mode === templateMode ? supportText : p.supportText)}</p>
+
+  <p class="justify">
+    Untuk informasi lebih lanjut mengenai persyaratan dan mekanisme pengurusan ${escapeHtml(
+      p.contactScope
+    )}, Saudara dapat memanfaatkan kanal pelayanan DPMPTSP Provinsi DKI Jakarta atau PIC pada UP. PMPTSP Kota Administrasi Jakarta Selatan Sdr. <strong>${escapeHtml(
+      pPicName
+    )}</strong>${picPhoneText} atau dapat mengajukan permohonan pendampingan dengan mengunjungi website <a href="https://asistara.online/">https://asistara.online/</a>.
+  </p>
+
+  <p class="justify">${escapeHtml(closingText)}</p>
+
+  <table style="width:100%; margin-top:22px;">
+    <tr>
+      <td style="width:52%;"></td>
+      <td style="width:48%; text-align:center; font-size:10.5pt;">
+        <div style="font-weight:bold; text-transform:uppercase;">${escapeHtml(signatoryLine1)}</div>
+        <div style="font-weight:bold; text-transform:uppercase;">${escapeHtml(signatoryLine2)}</div>
+        <br/><br/><br/><br/>
+        <div style="font-weight:bold;">${escapeHtml(signatoryName)}</div>
+        <div style="font-size:10pt;">${escapeHtml(signatoryNip)}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div style="margin-top:14px; font-size:10pt;">
+    <div>Tembusan:</div>
+    <ol>
+      ${copies.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}
+    </ol>
+  </div>
+</body>
+</html>`;
+
+    const safeNo = (lNumber || 'Draf').replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
+    const safePt = (dOwner || 'Perusahaan').replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+    const filename = `Surat_${safeNo || 'Teguran'}_${safePt || 'Perusahaan'}.doc`;
+
+    const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    setToastMessage(`Surat "${filename}" berhasil diunduh.`);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handlePrintSavedLetter = (letter: WarningLetter) => {
+    handleLoadSavedLetter(letter);
+    setTimeout(() => {
+      window.print();
+    }, 180);
   };
 
   const handlePrint = () => {
@@ -1616,10 +1835,21 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
               </h3>
               <p className="text-xs text-slate-500">
                 {canEditDatabase
-                  ? 'Setiap input otomatis terekam ke database. User Koordinator dapat mengubah langsung data pada baris tabel di bawah.'
+                  ? 'Setiap input otomatis terekam ke database. User Koordinator dapat mengubah langsung data atau mengunduh surat pada baris tabel di bawah.'
                   : 'Setiap input Nomor Surat, data RKK/SKK atau IPR, dan kelengkapan dokumen otomatis terekam ke database surat & perizinan.'}
               </p>
             </div>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleDownloadLetterDoc()}
+              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs inline-flex items-center space-x-1.5 shadow-sm transition"
+              title="Download surat aktif saat ini dalam format dokumen Word (.doc)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Surat (.doc)</span>
+            </button>
           </div>
         </div>
 
@@ -1929,6 +2159,24 @@ export const WarningLetterGenerator: React.FC<WarningLetterGeneratorProps> = ({
                                   <span>Ubah</span>
                                 </button>
                               )}
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadLetterDoc(letter)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-[11px] border border-emerald-200 inline-flex items-center space-x-1 transition"
+                                title="Download surat ini sebagai dokumen Word (.doc)"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Download</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePrintSavedLetter(letter)}
+                                className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] border border-rose-200 inline-flex items-center space-x-1 transition"
+                                title="Cetak / Download PDF surat ini (ukuran F4)"
+                              >
+                                <Printer className="w-3 h-3" />
+                                <span>PDF</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleLoadSavedLetter(letter)}

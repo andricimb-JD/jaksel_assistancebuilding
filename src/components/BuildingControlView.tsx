@@ -634,8 +634,12 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
         <header className="px-5 py-3.5 bg-white flex items-center justify-between border-b border-slate-100 z-20 sticky top-0 shadow-2xs">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0c406d] to-sky-500 p-0.5 shadow-sm flex items-center justify-center">
-              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center text-[#0c406d]">
-                <ShieldCheck className="w-5 h-5 text-[#0c406d]" />
+              <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center p-0.5 overflow-hidden">
+                <img
+                  src="/assets/aistudio/Gemini_Generated_Image_4pl6xe4pl6xe4pl6-removebg-preview_b2ad12aa.png"
+                  alt="Logo Jaksel Building Assistance"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
             <div>
